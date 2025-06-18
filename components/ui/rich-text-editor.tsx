@@ -33,7 +33,8 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const editorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (editorRef.current && value !== editorRef.current.innerHTML) {
+    if (editorRef.current) {
+      // Always update the innerHTML when value changes to ensure synchronization
       editorRef.current.innerHTML = value || ""
     }
   }, [value])

@@ -148,6 +148,7 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     if (selectedCategory) {
+      // Reset form data completely when a new category is selected to clear any stale data
       setFormData({
         name: {
           ar: selectedCategory.name.ar || "",
@@ -194,7 +195,13 @@ export default function CategoriesPage() {
         return
       }
     }
-    setSelectedCategory(category)
+    // First clear the current selection to force a complete re-render
+    setSelectedCategory(null)
+    
+    // Then set the new selection in the next render cycle
+    setTimeout(() => {
+      setSelectedCategory(category)
+    }, 0)
   }
 
   const handleToggleCollapse = (categoryId: number) => {
@@ -658,7 +665,7 @@ export default function CategoriesPage() {
               </AnimatePresence>
 
               {/* Tabs */}
-              <Tabs defaultValue="general" className="space-y-6">
+              <Tabs key={selectedCategory?.id || 'no-selection'} defaultValue="general" className="space-y-6">
                 <TabsList className="bg-white border border-gray-200 p-1">
                   <TabsTrigger
                     value="general"
@@ -750,6 +757,7 @@ export default function CategoriesPage() {
                         <div className="space-y-2">
                           <Label className="text-gray-700">Description (Arabic)</Label>
                           <RichTextEditor
+                            key={`desc-ar-${selectedCategory?.id || 'new'}`}
                             value={formData.description.ar}
                             onChange={(value) => handleNestedFormChange("description", "ar", value)}
                             placeholder="وصف الفئة بالعربية..."
@@ -759,6 +767,7 @@ export default function CategoriesPage() {
                         <div className="space-y-2">
                           <Label className="text-gray-700">Description (English)</Label>
                           <RichTextEditor
+                            key={`desc-en-${selectedCategory?.id || 'new'}`}
                             value={formData.description.en || ""}
                             onChange={(value) => handleNestedFormChange("description", "en", value)}
                             placeholder="Category description in English..."
