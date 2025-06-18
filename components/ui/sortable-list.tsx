@@ -52,8 +52,8 @@ function SortableItem({ id, children, className }: SortableItemProps) {
 }
 
 interface SortableListProps {
-  items: Array<{ id: string; [key: string]: any }>
-  onReorder: (items: Array<{ id: string; [key: string]: any }>) => void
+  items: Array<{ id: string;[key: string]: any }>
+  onReorder: (items: Array<{ id: string;[key: string]: any }>) => void
   renderItem: (item: any, index: number) => React.ReactNode
   className?: string
 }
@@ -77,8 +77,12 @@ export function SortableList({ items, onReorder, renderItem, className }: Sortab
     if (active.id !== over?.id) {
       const oldIndex = items.findIndex((item) => item.id === active.id)
       const newIndex = items.findIndex((item) => item.id === over?.id)
+      const targetorder = items[newIndex].position || 0
+      console.log("items", items);
 
-      const newItems = arrayMove(items, oldIndex, newIndex)
+      console.log(`Reordering from index ${oldIndex} to index ${newIndex} with target order ${targetorder}`);
+
+      const newItems = arrayMove(items, oldIndex, targetorder)
       onReorder(newItems)
     }
 

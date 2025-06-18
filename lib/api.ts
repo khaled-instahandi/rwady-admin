@@ -14,6 +14,7 @@ export interface Category {
   image: string | null
   image_url: string | null
   availability: number
+  orders?: number
   products_count: number | null
   created_at: string
   updated_at: string
@@ -30,6 +31,7 @@ export interface Product {
     ar: string
     en: string
   }
+
   sku: string
   price: number
   price_after_discount?: number
@@ -62,7 +64,9 @@ export interface Product {
   ribbon_color?: string
   related_category_id?: number
   related_category_limit?: number
+  position?: number
   orders?: number
+  categories?: Category[]
   colors: ProductColor[]
   related_products: Product[]
   media: ProductMedia[]
@@ -427,6 +431,21 @@ class ApiService {
 
   async unassignProductFromCategory(categoryId: number, productId: number): Promise<ApiResponse<any>> {
     return this.post(`/admin/categories/${categoryId}/unassign-products`, { product_ids: [productId] })
+  }
+  
+  async unassignProductsFromCategory(categoryId: number, productIds: number[]): Promise<ApiResponse<any>> {
+    return this.post(`/admin/categories/${categoryId}/unassign-products`, { product_ids: productIds })
+  }
+
+  async reorderProduct(productId: number, order: number): Promise<ApiResponse<any>> {
+    return this.put(`/admin/products/${productId}/reorder`, { orders: order })
+  }
+
+  async reorderCategoryProduct(
+    productId: number, 
+    data: { category_id: number; order: number }
+  ): Promise<ApiResponse<any>> {
+    return this.put(`/admin/products/${productId}/category-reorder`, data)
   }
 
   async updateCategoryProductOrder(

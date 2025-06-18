@@ -31,19 +31,40 @@ interface RichTextEditorProps {
 export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
   const [content, setContent] = useState(value || "")
   const editorRef = useRef<HTMLDivElement>(null)
-
+  const isInitialMount = useRef(true)
+  const prevValueRef = useRef<string>(value || "")
+  
+  // This effect runs only on initial mount
   useEffect(() => {
     if (editorRef.current) {
-      // Always update the innerHTML when value changes to ensure synchronization
       editorRef.current.innerHTML = value || ""
+    }
+    isInitialMount.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  
+  // This effect handles prop changes
+  useEffect(() => {
+    // Skip the first render as we handled it in the mount effect
+    if (!isInitialMount.current && editorRef.current && value !== prevValueRef.current) {
+      console.log("RichTextEditor: Updating content from prop change");
+      editorRef.current.innerHTML = value || ""
+      prevValueRef.current = value || ""
+      setContent(value || "")
     }
   }, [value])
 
   const handleContentChange = () => {
     if (editorRef.current) {
       const newContent = editorRef.current.innerHTML
-      setContent(newContent)
-      onChange(newContent)
+      
+      // Only update if content has actually changed
+      if (newContent !== content) {
+        console.log("Content changed by user interaction");
+        setContent(newContent)
+        prevValueRef.current = newContent
+        onChange(newContent)
+      }
     }
   }
 

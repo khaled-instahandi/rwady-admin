@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { CategoryTree } from "@/components/categories/category-tree"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { SortableList } from "@/components/ui/sortable-list"
 import {
   Plus,
   Trash2,
@@ -130,6 +131,14 @@ export default function CategoriesPage() {
     try {
       const response = await apiService.getCategoryProducts(categoryId)
       if (response.success && response.data) {
+        console.log(`Loaded ${response.data.length} products for category ${categoryId}:`, response.data);
+        
+        // Log each product's categories to debug the orders information
+        response.data.forEach(product => {
+          const currentCategoryEntry = product.categories?.find(cat => cat.id === categoryId);
+          console.log(`Product ${product.id} - Category orders:`, currentCategoryEntry?.orders);
+        });
+        
         setCategoryProducts(response.data)
       } else {
         // Use mock data filtered by category
@@ -146,9 +155,250 @@ export default function CategoriesPage() {
     }
   }, [])
 
+  const handleUnassignProduct = async (productId: number) => {
+    if (!selectedCategory) return
+
+    if (!confirm("Are you sure you want to remove this product from the category?")) {
+      return
+    }
+
+    try {
+      const response = await apiService.unassignProductFromCategory(selectedCategory.id, productId)
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Product removed from category",
+          variant: "default",
+        })
+
+        // Refresh the products list
+        loadCategoryProducts(selectedCategory.id)
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to remove product",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to unassign product:", error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleUnassignAllProducts = async () => {
+    if (!selectedCategory || categoryProducts.length === 0) return
+
+    if (!confirm("Are you sure you want to remove all products from this category?")) {
+      return
+    }
+
+    const productIds = categoryProducts.map(product => product.id)
+
+    try {
+      const response = await apiService.unassignProductsFromCategory(selectedCategory.id, productIds)
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "All products removed from category",
+          variant: "default",
+        })
+
+        // Refresh the products list
+        loadCategoryProducts(selectedCategory.id)
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to remove products",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to unassign products:", error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleProductReorder = async (reorderedProducts: Product[]) => {
+    // Check if we have the original products to compare with
+    console.log("Reordering products:", reorderedProducts);
+    
+    if (!selectedCategory || categoryProducts.length === 0) return;
+    
+    // Find the first product that has moved positions
+    let srcIndex = -1;
+    let destIndex = -1;
+    
+    // Find the moved product by comparing old and new positions
+    for (let i = 0; i < reorderedProducts.length; i++) {
+      if (i < categoryProducts.length && reorderedProducts[i].id !== categoryProducts[i].id) {
+        // Get the ID of the product that was moved
+        const movedProductId = reorderedProducts[i].id;
+        
+        // Find its original position
+        for (let j = 0; j < categoryProducts.length; j++) {
+          if (categoryProducts[j].id === movedProductId) {
+            srcIndex = j;
+            destIndex = i;
+            break;
+          }
+        }
+        break;
+      }
+    }
+    
+    // If we found a moved product
+    if (srcIndex !== -1 && destIndex !== -1) {
+      const movedProduct = categoryProducts[srcIndex];
+      
+      // Get the category entry for the current category from the moved product
+      const currentCategoryEntry = movedProduct.categories?.find(cat => cat.id === selectedCategory.id);
+      
+      console.log("Current category entry for product:", currentCategoryEntry);
+      
+      // Calculate the actual order value
+      let targetOrder: number;
+      
+      // Map products to get their current category orders (if available)
+      const productsWithCategoryOrders = reorderedProducts.map(product => {
+        const catEntry = product.categories?.find(cat => cat.id === selectedCategory.id);
+        return {
+          id: product.id,
+          orders: catEntry?.orders || 0
+        };
+      });
+      
+      console.log("Products with category orders:", productsWithCategoryOrders);
+      
+      // If the product was moved to the beginning
+      if (destIndex === 0) {
+        // If there's a next product with orders in this category, use one less than its orders
+        const nextProductOrders = productsWithCategoryOrders[1]?.orders;
+        targetOrder = nextProductOrders ? nextProductOrders - 1 : 0;
+      } 
+      // If the product was moved to the end
+      else if (destIndex === reorderedProducts.length - 1) {
+        // If there's a previous product with orders in this category, use one more than its orders
+        const prevProductOrders = productsWithCategoryOrders[destIndex - 1]?.orders;
+        targetOrder = prevProductOrders ? prevProductOrders + 1 : destIndex + 1;
+      } 
+      // If the product was moved to the middle
+      else {
+        // Use orders from surrounding products if available
+        const prevProductOrders = productsWithCategoryOrders[destIndex - 1]?.orders;
+        const nextProductOrders = productsWithCategoryOrders[destIndex + 1]?.orders;
+        
+        // If both surrounding products have orders, calculate the average
+        if (prevProductOrders && nextProductOrders) {
+          targetOrder = Math.round((prevProductOrders + nextProductOrders) / 2);
+        }
+        // If only the previous product has orders, add 1
+        else if (prevProductOrders) {
+          targetOrder = prevProductOrders + 1;
+        }
+        // If only the next product has orders, subtract 1
+        else if (nextProductOrders) {
+          targetOrder = Math.max(0, nextProductOrders - 1);
+        }
+        // If no surrounding products have orders, use the index
+        else {
+          targetOrder = destIndex + 1;
+        }
+      }
+      
+      console.log(`Moving product ${movedProduct.id} to position ${targetOrder} (was at index ${srcIndex}, now at index ${destIndex})`);
+      
+      try {
+        // Update the UI immediately for better user experience
+        setCategoryProducts(reorderedProducts);
+        
+        // Prepare payload for Category Product reordering
+        const payload = {
+          category_id: selectedCategory.id,
+          order: targetOrder
+        };
+        
+        console.log("Sending reorder payload:", payload);
+        
+        // API call with proper structure:
+        // - URL contains the ID of the product being moved
+        // - Body contains the target order value and the category_id
+        const response = await apiService.reorderCategoryProduct(movedProduct.id, payload);
+        
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: `تم تحديث ترتيب المنتج بنجاح`,
+            variant: "default",
+          });
+          
+          // Update the local order value in the product object and its categories
+          const updatedProducts = reorderedProducts.map((product, idx) => {
+            if (idx === destIndex) {
+              // Update the product's orders value
+              const updatedProduct = { ...product };
+              
+              // If the product has categories, update the order for the current category
+              if (updatedProduct.categories) {
+                updatedProduct.categories = updatedProduct.categories.map(cat => {
+                  if (cat.id === selectedCategory.id) {
+                    return { ...cat, orders: targetOrder };
+                  }
+                  return cat;
+                });
+              }
+              
+              return updatedProduct;
+            }
+            return product;
+          });
+          
+          setCategoryProducts(updatedProducts);
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "فشل تحديث ترتيب المنتج",
+            variant: "destructive",
+          });
+          
+          // Reload the products to ensure UI is in sync with the server
+          if (selectedCategory) {
+            loadCategoryProducts(selectedCategory.id);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to update product order:`, error);
+        toast({
+          title: "Error",
+          description: "حدث خطأ أثناء تحديث ترتيب المنتج",
+          variant: "destructive",
+        });
+        
+        // Reload the products to ensure UI is in sync with the server
+        if (selectedCategory) {
+          loadCategoryProducts(selectedCategory.id);
+        }
+      }
+    } else {
+      // No product movement detected, just update the UI
+      setCategoryProducts(reorderedProducts);
+    }
+  }
+  
   useEffect(() => {
     if (selectedCategory) {
-      // Reset form data completely when a new category is selected to clear any stale data
+      // Reset form data when a new category is selected
+      console.log("Selected category changed, resetting form data:", selectedCategory);
+      
+      // Set the form data directly without the previous setTimeout approach
       setFormData({
         name: {
           ar: selectedCategory.name.ar || "",
@@ -169,9 +419,10 @@ export default function CategoriesPage() {
           keywords: "",
           image: "",
         },
-      })
-      setUnsavedChanges(false)
-      loadCategoryProducts(selectedCategory.id)
+      });
+      
+      setUnsavedChanges(false);
+      loadCategoryProducts(selectedCategory.id);
     }
   }, [selectedCategory, loadCategoryProducts])
 
@@ -188,20 +439,18 @@ export default function CategoriesPage() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [selectedCategory, unsavedChanges, saving])
-
+  
   const handleCategorySelect = (category: Category) => {
     if (unsavedChanges) {
       if (!confirm("You have unsaved changes. Do you want to continue?")) {
         return
       }
     }
-    // First clear the current selection to force a complete re-render
-    setSelectedCategory(null)
     
-    // Then set the new selection in the next render cycle
-    setTimeout(() => {
-      setSelectedCategory(category)
-    }, 0)
+    console.log("Selecting category:", category);
+    
+    // Set the selected category directly without delays or clearing
+    setSelectedCategory(category)
   }
 
   const handleToggleCollapse = (categoryId: number) => {
@@ -215,22 +464,37 @@ export default function CategoriesPage() {
   }
 
   const handleFormChange = (field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-    setUnsavedChanges(true)
+    // Use functional update pattern for state updates
+    setFormData((prev) => {
+      // Only update if value has changed
+      if (prev[field as keyof CategoryFormData] === value) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [field]: value,
+      };
+    });
+    setUnsavedChanges(true);
   }
 
   const handleNestedFormChange = (parent: string, field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [parent]: {
-        ...(prev[parent as keyof CategoryFormData] as Record<string, any>),
-        [field]: value,
-      },
-    }))
-    setUnsavedChanges(true)
+    // Use functional update pattern for state updates
+    setFormData((prev) => {
+      const parentObj = prev[parent as keyof CategoryFormData] as Record<string, any>;
+      // Only update if value has changed
+      if (parentObj && parentObj[field] === value) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [parent]: {
+          ...(parentObj || {}),
+          [field]: value,
+        },
+      };
+    });
+    setUnsavedChanges(true);
   }
 
   const handleImageChange = (imageUrl: string, imageName: string) => {
@@ -253,7 +517,7 @@ export default function CategoriesPage() {
         image: formData.image_name, // Send image_name to API
       }
       console.log("Saving category data:", dataToSend);
-      
+
 
       const response = await apiService.updateCategory(selectedCategory.id, dataToSend)
       if (response.success) {
@@ -349,7 +613,7 @@ export default function CategoriesPage() {
       name: { ar: "فئة فرعية جديدة", en: "New Subcategory" },
       description: { ar: "", en: "" },
       parent_id: selectedCategory.id,
-      availability: true,
+      availability: false,
       image: "",
       seo: {
         meta_title: "",
@@ -665,7 +929,7 @@ export default function CategoriesPage() {
               </AnimatePresence>
 
               {/* Tabs */}
-              <Tabs key={selectedCategory?.id || 'no-selection'} defaultValue="general" className="space-y-6">
+              <Tabs key={`${selectedCategory?.id || 'no-selection'}`} defaultValue="general" className="space-y-6">
                 <TabsList className="bg-white border border-gray-200 p-1">
                   <TabsTrigger
                     value="general"
@@ -744,7 +1008,8 @@ export default function CategoriesPage() {
                       <div className="space-y-2">
                         <Label className="text-gray-700">Category Image</Label>
                         <ImageUpload
-                          value={formData.image_url || ""}
+                          key={`image-${selectedCategory?.id || 'new'}`}
+                          value={formData.image ? formData.image : formData.image_url || ""}
                           imageName={formData.image_name}
                           onChange={handleImageChange}
                           folder="categories"
@@ -825,42 +1090,67 @@ export default function CategoriesPage() {
                               >
                                 Assign Products to Category
                               </Button>
-                              <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
+                              <Button
+                                onClick={handleUnassignAllProducts}
+                                variant="outline"
+                                className="border-red-200 text-red-700 hover:bg-red-50"
+                              >
                                 Unassign All
                               </Button>
                             </div>
                           </div>
 
                           <div className="space-y-3">
-                            {categoryProducts.map((product, index) => (
-                              <motion.div
-                                key={product.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                                className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-                              >
-                                <div className="flex items-center space-x-4">
-                                  <div className="cursor-move text-gray-400 hover:text-gray-600">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                      <path d="M7 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
-                                    </svg>
+                            <p className="text-sm text-gray-500 mb-2 flex items-center">
+                              <svg className="w-4 h-4 inline-block ml-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M7 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
+                              </svg>
+                              اسحب وأفلت المنتجات لإعادة ترتيبها (استخدم القبضة على اليمين للسحب، الأرقام توضح موقع كل منتج، بالتحويم على الرقم يظهر الترتيب الفعلي)
+                            </p>
+                            <SortableList
+                              items={categoryProducts.map((p, index) => {
+                                // Find the current category entry for this product
+                                const categoryEntry = p.categories?.find(cat => cat.id === selectedCategory?.id);
+                                
+                                return { 
+                                  ...p, 
+                                  id: p.id.toString(),
+                                  // Use the category-specific order if available, otherwise fallback to index
+                                  position: categoryEntry?.orders || index + 1 
+                                };
+                              })}
+                              onReorder={(newItems) => handleProductReorder(newItems as unknown as Product[])}
+                              renderItem={(product: Product & { position: number }) => (
+                                <div
+                                  className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                                >
+                                  <div className="flex items-center space-x-4">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center ml-2 text-sm text-blue-700 font-medium" 
+                                      title={`الترتيب الفعلي: ${product.position}`}>
+                                      {product.position}
+                                    </div>
+                                    <img
+                                      src={product.image_url || "/placeholder.svg?height=60&width=60"}
+                                      alt={product.name.ar || product.name.en || "Product"}
+                                      className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                                    />
+                                    <div>
+                                      <h4 className="font-medium text-gray-900">{product.name.ar || product.name.en}</h4>
+                                      <p className="text-sm text-gray-500">{product.sku}</p>
+                                    </div>
                                   </div>
-                                  <img
-                                    src={product.image_url || "/placeholder.svg?height=60&width=60"}
-                                    alt={product.name.ar || product.name.en || "Product"}
-                                    className="w-12 h-12 rounded-lg object-cover border border-gray-200"
-                                  />
-                                  <div>
-                                    <h4 className="font-medium text-gray-900">{product.name.ar || product.name.en}</h4>
-                                    <p className="text-sm text-gray-500">{product.sku}</p>
-                                  </div>
+                                  <Button
+                                    onClick={() => handleUnassignProduct(product.id)}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                                <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </motion.div>
-                            ))}
+                              )}
+                              className="space-y-3"
+                            />
                           </div>
 
                           <div className="mt-6 flex justify-between items-center text-sm text-gray-600">
