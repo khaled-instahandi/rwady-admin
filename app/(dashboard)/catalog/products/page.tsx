@@ -1,0 +1,767 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+import { apiService, type Product, type PaginationParams } from "@/lib/api"
+import {
+  Plus,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
+  Eye,
+  Package,
+  ChevronDown,
+  Download,
+  Upload,
+  Copy,
+  ArrowRight,
+  Loader2,
+} from "lucide-react"
+import Link from "next/link"
+
+// Debounce function to optimize search input
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([])
+  const [searchInput, setSearchInput] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [activeFilters, setActiveFilters] = useState(0)
+  const [categories, setCategories] = useState<any[]>([])
+  const [brands, setBrands] = useState<any[]>([])
+  const [loadingFilters, setLoadingFilters] = useState(false)
+  const { toast } = useToast()
+
+  // Filter states
+  const [filters, setFilters] = useState<{
+    status: string
+    category_id: string
+    brand_id: string
+    price_min: string
+    price_max: string
+    stock_status: string
+    sort_by: string
+    sort_direction: "asc" | "desc"
+  }>({
+    status: "",
+    category_id: "",
+    brand_id: "",
+    price_min: "",
+    price_max: "",
+    stock_status: "",
+    sort_by: "NAME: A TO Z",
+    sort_direction: "asc",
+  })
+
+  // Apply debounce to search input
+  const debouncedSearch = useDebounce(searchInput, 500)
+
+  // Fetch categories for the filter dropdown
+  const fetchCategories = useCallback(async () => {
+    try {
+      setLoadingFilters(true)
+      const response = await apiService.getCategories()
+      if (response.success) {
+        setCategories(response.data)
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+    } finally {
+      setLoadingFilters(false)
+    }
+  }, [])
+
+  // Fetch brands for the filter dropdown
+  const fetchBrands = useCallback(async () => {
+    try {
+      setLoadingFilters(true)
+      const response = await apiService.getBrands()
+      if (response.success) {
+        setBrands(response.data)
+      }
+    } catch (error) {
+      console.error("Error fetching brands:", error)
+    } finally {
+      setLoadingFilters(false)
+    }
+  }, [])
+
+  // Format the sort selection for API parameters
+  const getSortParams = useCallback(() => {
+    switch (filters.sort_by) {
+      case "NAME: A TO Z":
+        return { sort_by: "name", sort_direction: "asc" as const }
+      case "NAME: Z TO A":
+        return { sort_by: "name", sort_direction: "desc" as const }
+      case "PRICE: LOW TO HIGH":
+        return { sort_by: "price", sort_direction: "asc" as const }
+      case "PRICE: HIGH TO LOW":
+        return { sort_by: "price", sort_direction: "desc" as const }
+      default:
+        return { sort_by: "name", sort_direction: "asc" as const }
+    }
+  }, [filters.sort_by])
+
+  // Count active filters to show on the filter button
+  useEffect(() => {
+    let count = 0
+    if (filters.status) count++
+    if (filters.category_id) count++
+    if (filters.brand_id) count++
+    if (filters.price_min || filters.price_max) count++
+    if (filters.stock_status) count++
+    setActiveFilters(count)
+  }, [filters])
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      if (!debouncedSearch) {
+        setLoading(false)
+      } else {
+        setLoading(true)
+      }
+
+      const sortParams = getSortParams()
+
+      // Build filter parameters
+      const filterParams: Record<string, any> = {}
+      if (filters.status) filterParams.availability = filters.status === "enabled" ? 1 : 0
+      if (filters.category_id) filterParams.category_id = filters.category_id
+      if (filters.brand_id) filterParams.brand_id = filters.brand_id
+      if (filters.price_min) filterParams.price_min = filters.price_min
+      if (filters.price_max) filterParams.price_max = filters.price_max
+      if (filters.stock_status) {
+        if (filters.stock_status === "in_stock") filterParams.stock_status = "in_stock"
+        if (filters.stock_status === "out_of_stock") filterParams.stock_status = "out_of_stock"
+        if (filters.stock_status === "unlimited") filterParams.stock_unlimited = true
+      }
+
+      const response = await apiService.getProducts({
+        page: currentPage,
+        per_page: 20,
+        search: debouncedSearch,
+        sort_by: sortParams.sort_by,
+        sort_direction: sortParams.sort_direction,
+        filters: filterParams,
+      })
+
+      if (response.success) {
+        setProducts(response.data)
+        if (response.meta) {
+          setTotalPages(response.meta.last_page)
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load products",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error)
+      toast({
+        title: "Error",
+        description: "An error occurred while loading the products",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [currentPage, debouncedSearch, filters, getSortParams, products.length, toast])
+
+  // Fetch categories and brands for filters
+  const fetchCategoriesAndBrands = useCallback(async () => {
+    setLoadingFilters(true)
+    try {
+      const [categoriesResponse, brandsResponse] = await Promise.all([
+        apiService.getCategories({ page: 1, per_page: 100 }),
+        apiService.getBrands({ page: 1, per_page: 100 }),
+      ])
+
+      if (categoriesResponse.success) {
+        setCategories(categoriesResponse.data)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load categories",
+          variant: "destructive",
+        })
+      }
+
+      if (brandsResponse.success) {
+        setBrands(brandsResponse.data)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load brands",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching categories and brands:", error)
+      toast({
+        title: "Error",
+        description: "An error occurred while loading categories and brands",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingFilters(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchProducts()
+    fetchCategoriesAndBrands()
+  }, [fetchProducts, fetchCategoriesAndBrands])
+
+  const handleSearch = (query: string) => {
+    setSearchInput(query)
+    setCurrentPage(1)
+  }
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
+    setCurrentPage(1)
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      status: "",
+      category_id: "",
+      brand_id: "",
+      price_min: "",
+      price_max: "",
+      stock_status: "",
+      sort_by: "name",
+      sort_direction: "asc",
+    })
+    setCurrentPage(1)
+  }
+
+  const handleSelectProduct = (productId: number) => {
+    setSelectedProducts((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId],
+    )
+  }
+
+  const handleSelectAll = () => {
+    if (selectedProducts.length === products.length) {
+      setSelectedProducts([])
+    } else {
+      setSelectedProducts(products.map((p) => p.id))
+    }
+  }
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return
+
+    try {
+      const response = await apiService.deleteProduct(productToDelete.id)
+      if (response.success) {
+        toast({
+          title: "Deleted",
+          description: "Product deleted successfully",
+        })
+        fetchProducts()
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to delete product",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred while deleting the product",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleteDialogOpen(false)
+      setProductToDelete(null)
+    }
+  }
+
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString()} IQD`
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Products</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-40 bg-gray-200 rounded animate-pulse" />
+            <div className="h-10 w-32 bg-gray-200 rounded animate-pulse" />
+            <div className="h-10 w-48 bg-gray-200 rounded animate-pulse" />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 mb-4">
+          <div className="h-10 w-24 bg-gray-200 rounded animate-pulse" />
+          <div className="h-10 w-full bg-gray-200 rounded animate-pulse" />
+        </div>
+
+        <div className="space-y-4">
+          {Array(8).fill(0).map((_, i) => (
+            <div key={i} className="p-4 border rounded-lg bg-gray-50">
+              <div className="flex gap-4">
+                <div className="h-5 w-5 rounded bg-gray-200 animate-pulse" />
+                <div className="h-16 w-16 bg-gray-200 rounded animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-6 w-48 bg-gray-200 rounded animate-pulse mb-2" />
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse mb-3" />
+                  <div className="flex gap-3">
+                    <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </div>
+                <div className="flex flex-col items-end">
+                  <div className="h-6 w-24 bg-gray-200 rounded animate-pulse mb-2" />
+                  <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Products</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href="/catalog/products/new">
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Product
+            </Button>
+          </Link>
+          <Link href="/catalog/products/bulk-edit">
+            <Button variant="outline">Bulk Edit All</Button>
+          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                Import or Export Products
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>
+                <Upload className="h-4 w-4 mr-2" />
+                Import Products
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Download className="h-4 w-4 mr-2" />
+                Export Products
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFilterDialogOpen(true)}
+            className={activeFilters > 0 ? "border-blue-500 text-blue-600" : ""}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+            {activeFilters > 0 && (
+              <span className="ml-2 w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
+                {activeFilters}
+              </span>
+            )}
+          </Button>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search by product name, SKU, UPC..."
+              value={searchInput}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Checkbox
+              checked={selectedProducts.length === products.length && products.length > 0}
+              onCheckedChange={handleSelectAll}
+            />
+            <Select value={filters.sort_by} onValueChange={(value) => handleFilterChange("sort_by", value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NAME: A TO Z">NAME: A TO Z</SelectItem>
+                <SelectItem value="NAME: Z TO A">NAME: Z TO A</SelectItem>
+                <SelectItem value="PRICE: LOW TO HIGH">PRICE: LOW TO HIGH</SelectItem>
+                <SelectItem value="PRICE: HIGH TO LOW">PRICE: HIGH TO LOW</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchProducts}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Products List */}
+      <div className="space-y-1">
+        {products.length === 0 ? (
+          <div className="p-8 text-center border rounded-lg bg-gray-50">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">No products found</h3>
+            <p className="text-gray-600 mt-1">
+              {debouncedSearch || activeFilters > 0
+                ? "Try changing your search or filter criteria"
+                : "Add your first product to get started"
+              }
+            </p>
+            {(debouncedSearch || activeFilters > 0) && (
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => {
+                  setSearchInput("");
+                  clearFilters();
+                }}
+              >
+                Clear Search & Filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          products.map((product) => (
+            <div key={product.id} className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50">
+              <Checkbox
+                checked={selectedProducts.includes(product.id)}
+                onCheckedChange={() => handleSelectProduct(product.id)}
+              />
+
+              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                {product.media.length > 0 && product.media[0].type === "image" ? (
+                  <img
+                    src={product.media[0].url || "/placeholder.svg?height=64&width=64"}
+                    alt={product.name.en}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Package className="h-8 w-8 text-gray-400" />
+                )}
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">{product.name.en}</h3>
+                    <p className="text-sm text-gray-500">{product.sku}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${product.availability ? "bg-green-500" : "bg-gray-400"}`}
+                        />
+                        <span className={`text-sm ${product.availability ? "text-green-600" : "text-gray-500"}`}>
+                          {product.availability ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${product.stock > 0 || product.stock_unlimited ? "bg-green-500" : "bg-red-500"}`}
+                        />
+                        <span className="text-sm text-gray-600">
+                          {product.stock_unlimited ? "In stock" : product.stock > 0 ? "In stock" : "Out of stock"}
+                        </span>
+                      </div>
+                      {product.requires_shipping && (
+                        <div className="flex items-center gap-2">
+                          <Package className="h-3 w-3 text-gray-400" />
+                          <span className="text-sm text-gray-600">Requires shipping</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-lg font-semibold text-gray-900">{formatPrice(product.price)}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            Edit Product
+                            <ChevronDown className="h-4 w-4 ml-2" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/catalog/products/${product.id}`}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Link>
+                          </DropdownMenuItem>
+                          {/* <DropdownMenuItem>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Preview
+                          </DropdownMenuItem> */}
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => {
+                              setProductToDelete(product)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-gray-600">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the product "{productToDelete?.name.en}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteProduct}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Filter Dialog */}
+      <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Filter Products</DialogTitle>
+            <DialogDescription>
+              Select criteria to filter the products list.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium col-span-1">Status</label>
+              <Select
+                value={filters.status}
+                onValueChange={(value) => handleFilterChange("status", value)}
+              // className="col-span-3"
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any status</SelectItem>
+                  <SelectItem value="enabled">Enabled</SelectItem>
+                  <SelectItem value="disabled">Disabled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium col-span-1">Category</label>
+              <Select
+                value={filters.category_id}
+                onValueChange={(value) => handleFilterChange("category_id", value)}
+              // className="col-span-3"
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any category</SelectItem>
+                  {categories.length === 0 && (
+                    <SelectItem value="" disabled  >
+                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                      Loading categories...
+                    </SelectItem>
+                  )}
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium col-span-1">Brand</label>
+              <Select
+                value={filters.brand_id}
+                onValueChange={(value) => handleFilterChange("brand_id", value)}
+              // className="col-span-3"
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any brand" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any brand</SelectItem>
+                  {brands.length === 0 && (
+                    <SelectItem value="" disabled>
+                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                      Loading brands...
+                    </SelectItem>
+                  )}
+                  {brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium col-span-1">Price</label>
+              <div className="col-span-3 flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={filters.price_min}
+                  onChange={(e) => handleFilterChange("price_min", e.target.value)}
+                  className="flex-1"
+                />
+                <span>to</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={filters.price_max}
+                  onChange={(e) => handleFilterChange("price_max", e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium col-span-1">Stock</label>
+              <Select
+                value={filters.stock_status}
+                onValueChange={(value) => handleFilterChange("stock_status", value)}
+              // className="col-span-3"
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any stock status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any stock status</SelectItem>
+                  <SelectItem value="in_stock">In Stock</SelectItem>
+                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                  <SelectItem value="unlimited">Unlimited Stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={clearFilters}>
+              Clear Filters
+            </Button>
+            <Button onClick={() => {
+              fetchProducts()
+              setFilterDialogOpen(false)
+            }}>
+              Apply Filters
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
