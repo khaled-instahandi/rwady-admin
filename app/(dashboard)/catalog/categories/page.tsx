@@ -46,6 +46,7 @@ interface CategoryFormData {
   availability: boolean
   image: string
   image_name: string
+  image_url?: string
   seo: {
     meta_title: string
     meta_description: string
@@ -76,6 +77,7 @@ export default function CategoriesPage() {
     description: { ar: "", en: "" },
     parent_id: null,
     availability: true,
+    image_url: "",
     image: "",
     image_name: "",
     seo: {
@@ -155,6 +157,7 @@ export default function CategoriesPage() {
           ar: selectedCategory.description.ar || "",
           en: selectedCategory.description.en || "",
         },
+        image_url: selectedCategory.image_url || "",
         parent_id: selectedCategory.parent_id,
         availability: Boolean(selectedCategory.availability),
         image: selectedCategory.image_url || "",
@@ -242,6 +245,8 @@ export default function CategoriesPage() {
         ...formData,
         image: formData.image_name, // Send image_name to API
       }
+      console.log("Saving category data:", dataToSend);
+      
 
       const response = await apiService.updateCategory(selectedCategory.id, dataToSend)
       if (response.success) {
@@ -250,6 +255,21 @@ export default function CategoriesPage() {
           title: "Success",
           description: "Category updated successfully",
           variant: "default",
+        })
+        setFormData({
+          name: { ar: "", en: "" },
+          description: { ar: "", en: "" },
+          parent_id: null,
+          availability: true,
+          image: "",
+          image_name: "",
+          image_url: "",
+          seo: {
+            meta_title: "",
+            meta_description: "",
+            keywords: "",
+            image: "",
+          },
         })
         await loadCategories()
         // Update selected category with the latest data
@@ -717,7 +737,7 @@ export default function CategoriesPage() {
                       <div className="space-y-2">
                         <Label className="text-gray-700">Category Image</Label>
                         <ImageUpload
-                          value={formData.image}
+                          value={formData.image_url || ""}
                           imageName={formData.image_name}
                           onChange={handleImageChange}
                           folder="categories"
