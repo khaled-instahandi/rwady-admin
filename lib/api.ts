@@ -34,6 +34,7 @@ export interface Product {
 
   sku: string
   price: number
+  sort_orders?: number
   price_after_discount?: number
   price_discount_start?: string
   price_discount_end?: string
@@ -432,7 +433,7 @@ class ApiService {
   async unassignProductFromCategory(categoryId: number, productId: number): Promise<ApiResponse<any>> {
     return this.post(`/admin/categories/${categoryId}/unassign-products`, { product_ids: [productId] })
   }
-  
+
   async unassignProductsFromCategory(categoryId: number, productIds: number[]): Promise<ApiResponse<any>> {
     return this.post(`/admin/categories/${categoryId}/unassign-products`, { product_ids: productIds })
   }
@@ -442,10 +443,11 @@ class ApiService {
   }
 
   async reorderCategoryProduct(
-    productId: number, 
-    data: { category_id: number; order: number }
+    productId: number,
+    order: number
   ): Promise<ApiResponse<any>> {
-    return this.put(`/admin/products/${productId}/category-reorder`, data)
+    // Send only the order value in the body as requested
+    return this.put(`/admin/products/${productId}/reorder`, { sort_orders: order })
   }
 
   async updateCategoryProductOrder(

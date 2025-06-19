@@ -132,13 +132,13 @@ export default function CategoriesPage() {
       const response = await apiService.getCategoryProducts(categoryId)
       if (response.success && response.data) {
         console.log(`Loaded ${response.data.length} products for category ${categoryId}:`, response.data);
-        
+
         // Log each product's categories to debug the orders information
         response.data.forEach(product => {
           const currentCategoryEntry = product.categories?.find(cat => cat.id === categoryId);
           console.log(`Product ${product.id} - Category orders:`, currentCategoryEntry?.orders);
         });
-        
+
         setCategoryProducts(response.data)
       } else {
         // Use mock data filtered by category
@@ -227,177 +227,12 @@ export default function CategoriesPage() {
     }
   }
 
-  const handleProductReorder = async (reorderedProducts: Product[]) => {
-    // Check if we have the original products to compare with
-    console.log("Reordering products:", reorderedProducts);
-    
-    if (!selectedCategory || categoryProducts.length === 0) return;
-    
-    // Find the first product that has moved positions
-    let srcIndex = -1;
-    let destIndex = -1;
-    
-    // Find the moved product by comparing old and new positions
-    for (let i = 0; i < reorderedProducts.length; i++) {
-      if (i < categoryProducts.length && reorderedProducts[i].id !== categoryProducts[i].id) {
-        // Get the ID of the product that was moved
-        const movedProductId = reorderedProducts[i].id;
-        
-        // Find its original position
-        for (let j = 0; j < categoryProducts.length; j++) {
-          if (categoryProducts[j].id === movedProductId) {
-            srcIndex = j;
-            destIndex = i;
-            break;
-          }
-        }
-        break;
-      }
-    }
-    
-    // If we found a moved product
-    if (srcIndex !== -1 && destIndex !== -1) {
-      const movedProduct = categoryProducts[srcIndex];
-      
-      // Get the category entry for the current category from the moved product
-      const currentCategoryEntry = movedProduct.categories?.find(cat => cat.id === selectedCategory.id);
-      
-      console.log("Current category entry for product:", currentCategoryEntry);
-      
-      // Calculate the actual order value
-      let targetOrder: number;
-      
-      // Map products to get their current category orders (if available)
-      const productsWithCategoryOrders = reorderedProducts.map(product => {
-        const catEntry = product.categories?.find(cat => cat.id === selectedCategory.id);
-        return {
-          id: product.id,
-          orders: catEntry?.orders || 0
-        };
-      });
-      
-      console.log("Products with category orders:", productsWithCategoryOrders);
-      
-      // If the product was moved to the beginning
-      if (destIndex === 0) {
-        // If there's a next product with orders in this category, use one less than its orders
-        const nextProductOrders = productsWithCategoryOrders[1]?.orders;
-        targetOrder = nextProductOrders ? nextProductOrders - 1 : 0;
-      } 
-      // If the product was moved to the end
-      else if (destIndex === reorderedProducts.length - 1) {
-        // If there's a previous product with orders in this category, use one more than its orders
-        const prevProductOrders = productsWithCategoryOrders[destIndex - 1]?.orders;
-        targetOrder = prevProductOrders ? prevProductOrders + 1 : destIndex + 1;
-      } 
-      // If the product was moved to the middle
-      else {
-        // Use orders from surrounding products if available
-        const prevProductOrders = productsWithCategoryOrders[destIndex - 1]?.orders;
-        const nextProductOrders = productsWithCategoryOrders[destIndex + 1]?.orders;
-        
-        // If both surrounding products have orders, calculate the average
-        if (prevProductOrders && nextProductOrders) {
-          targetOrder = Math.round((prevProductOrders + nextProductOrders) / 2);
-        }
-        // If only the previous product has orders, add 1
-        else if (prevProductOrders) {
-          targetOrder = prevProductOrders + 1;
-        }
-        // If only the next product has orders, subtract 1
-        else if (nextProductOrders) {
-          targetOrder = Math.max(0, nextProductOrders - 1);
-        }
-        // If no surrounding products have orders, use the index
-        else {
-          targetOrder = destIndex + 1;
-        }
-      }
-      
-      console.log(`Moving product ${movedProduct.id} to position ${targetOrder} (was at index ${srcIndex}, now at index ${destIndex})`);
-      
-      try {
-        // Update the UI immediately for better user experience
-        setCategoryProducts(reorderedProducts);
-        
-        // Prepare payload for Category Product reordering
-        const payload = {
-          category_id: selectedCategory.id,
-          order: targetOrder
-        };
-        
-        console.log("Sending reorder payload:", payload);
-        
-        // API call with proper structure:
-        // - URL contains the ID of the product being moved
-        // - Body contains the target order value and the category_id
-        const response = await apiService.reorderCategoryProduct(movedProduct.id, payload);
-        
-        if (response.success) {
-          toast({
-            title: "Success",
-            description: `تم تحديث ترتيب المنتج بنجاح`,
-            variant: "default",
-          });
-          
-          // Update the local order value in the product object and its categories
-          const updatedProducts = reorderedProducts.map((product, idx) => {
-            if (idx === destIndex) {
-              // Update the product's orders value
-              const updatedProduct = { ...product };
-              
-              // If the product has categories, update the order for the current category
-              if (updatedProduct.categories) {
-                updatedProduct.categories = updatedProduct.categories.map(cat => {
-                  if (cat.id === selectedCategory.id) {
-                    return { ...cat, orders: targetOrder };
-                  }
-                  return cat;
-                });
-              }
-              
-              return updatedProduct;
-            }
-            return product;
-          });
-          
-          setCategoryProducts(updatedProducts);
-        } else {
-          toast({
-            title: "Error",
-            description: response.message || "فشل تحديث ترتيب المنتج",
-            variant: "destructive",
-          });
-          
-          // Reload the products to ensure UI is in sync with the server
-          if (selectedCategory) {
-            loadCategoryProducts(selectedCategory.id);
-          }
-        }
-      } catch (error) {
-        console.error(`Failed to update product order:`, error);
-        toast({
-          title: "Error",
-          description: "حدث خطأ أثناء تحديث ترتيب المنتج",
-          variant: "destructive",
-        });
-        
-        // Reload the products to ensure UI is in sync with the server
-        if (selectedCategory) {
-          loadCategoryProducts(selectedCategory.id);
-        }
-      }
-    } else {
-      // No product movement detected, just update the UI
-      setCategoryProducts(reorderedProducts);
-    }
-  }
-  
+
   useEffect(() => {
     if (selectedCategory) {
       // Reset form data when a new category is selected
       console.log("Selected category changed, resetting form data:", selectedCategory);
-      
+
       // Set the form data directly without the previous setTimeout approach
       setFormData({
         name: {
@@ -420,7 +255,7 @@ export default function CategoriesPage() {
           image: "",
         },
       });
-      
+
       setUnsavedChanges(false);
       loadCategoryProducts(selectedCategory.id);
     }
@@ -439,16 +274,16 @@ export default function CategoriesPage() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [selectedCategory, unsavedChanges, saving])
-  
+
   const handleCategorySelect = (category: Category) => {
     if (unsavedChanges) {
       if (!confirm("You have unsaved changes. Do you want to continue?")) {
         return
       }
     }
-    
+
     console.log("Selecting category:", category);
-    
+
     // Set the selected category directly without delays or clearing
     setSelectedCategory(category)
   }
@@ -698,6 +533,65 @@ export default function CategoriesPage() {
 
     return matchesSearch && matchesAvailability
   })
+  // Sort categories by na
+  const handleReorder = async (reorderedItems: Product[]) => {
+    try {
+      // Find the item that was moved (dragged)
+      let movedProductId = null;
+      let targetPosition = 0;
+
+      // Compare original positions with new positions to identify the moved item
+      const originalPositions = new Map(categoryProducts.map(product => [product.id, product.sort_orders || 0]));
+
+      for (let i = 0; i < reorderedItems.length; i++) {
+        const currentProduct = reorderedItems[i];
+        const currentId = Number(currentProduct.id);
+        const originalPosition = originalPositions.get(currentId) || 0;
+        const newPosition = i + 1;
+        
+        if (originalPosition !== newPosition) {
+          movedProductId = currentId;
+          targetPosition = newPosition;
+          console.log(`Product moved: ID ${movedProductId} to position ${targetPosition}`);
+          break;
+        }
+      }
+
+      if (movedProductId) {
+        // Send only the product ID and target position
+        const response = await apiService.reorderProduct(
+          movedProductId,
+          targetPosition
+        );
+
+        if (response.success) {
+          // Use the response data to update the product order
+          if (response.data) {
+            // Refresh product data from the server response
+            setCategoryProducts(response.data);
+          }
+          
+          toast({
+            title: "Success",
+            description: "منتجات الفئة تم ترتيبها بنجاح",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "فشل في تحديث الترتيب",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error reordering products:", error);
+      toast({
+        title: "Error",
+        description: "حدث خطأ أثناء تحديث الترتيب",
+        variant: "destructive",
+      });
+    }
+  }
 
   if (loading) {
     return <CategorySkeleton />
@@ -1101,38 +995,40 @@ export default function CategoriesPage() {
                           </div>
 
                           <div className="space-y-3">
-                            <p className="text-sm text-gray-500 mb-2 flex items-center">
-                              <svg className="w-4 h-4 inline-block ml-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M7 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM17 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
-                              </svg>
-                              اسحب وأفلت المنتجات لإعادة ترتيبها (استخدم القبضة على اليمين للسحب، الأرقام توضح موقع كل منتج، بالتحويم على الرقم يظهر الترتيب الفعلي)
-                            </p>
+
                             <SortableList
                               items={categoryProducts.map((p, index) => {
                                 // Find the current category entry for this product
                                 const categoryEntry = p.categories?.find(cat => cat.id === selectedCategory?.id);
-                                
-                                return { 
-                                  ...p, 
+
+                                return {
+                                  ...p,
                                   id: p.id.toString(),
                                   // Use the category-specific order if available, otherwise fallback to index
-                                  position: categoryEntry?.orders || index + 1 
+                                  position: categoryEntry?.orders || index + 1
                                 };
                               })}
-                              onReorder={(newItems) => handleProductReorder(newItems as unknown as Product[])}
-                              renderItem={(product: Product & { position: number }) => (
+                              onReorder={(reorderedItems) => {
+                                const reorderedSections = reorderedItems.map((item) => ({
+                                  ...item,
+                                  id: Number(item.id),
+                                })) as Product[]
+                                handleReorder(reorderedSections)
+                              }} renderItem={(product: Product & { position: number }) => (
                                 <div
-                                  className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                                  className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all group"
                                 >
                                   <div className="flex items-center space-x-4">
-                                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center ml-2 text-sm text-blue-700 font-medium" 
-                                      title={`الترتيب الفعلي: ${product.position}`}>
-                                      {product.position}
+                                    <div 
+                                      className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center ml-2 text-sm text-blue-700 font-medium shadow-sm group-hover:bg-blue-200 transition-colors"
+                                      title={`الترتيب الفعلي: ${product.position || 0}`}
+                                    >
+                                      {product.position || 0}
                                     </div>
                                     <img
                                       src={product.image_url || "/placeholder.svg?height=60&width=60"}
                                       alt={product.name.ar || product.name.en || "Product"}
-                                      className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                                      className="w-12 h-12 rounded-lg object-cover border border-gray-200 group-hover:shadow-md transition-shadow"
                                     />
                                     <div>
                                       <h4 className="font-medium text-gray-900">{product.name.ar || product.name.en}</h4>
@@ -1143,7 +1039,7 @@ export default function CategoriesPage() {
                                     onClick={() => handleUnassignProduct(product.id)}
                                     variant="ghost"
                                     size="sm"
-                                    className="text-red-600 hover:bg-red-50"
+                                    className="text-red-600 hover:bg-red-50 opacity-70 group-hover:opacity-100 transition-opacity"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>

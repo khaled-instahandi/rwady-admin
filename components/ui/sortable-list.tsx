@@ -35,25 +35,37 @@ function SortableItem({ id, children, className }: SortableItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={cn("relative", isDragging && "z-50 opacity-50", className)}
+      className={cn(
+        "relative", 
+        isDragging ? "z-50 shadow-xl bg-blue-50 border-blue-200" : "",
+        isDragging ? "opacity-80" : "",
+        className
+      )}
       {...attributes}
     >
-      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10">
+      <div className={cn(
+        "absolute left-2 top-1/2 transform -translate-y-1/2 z-10",
+        isDragging ? "text-blue-600" : ""
+      )}>
         <div
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 rounded transition-colors"
+          className={cn(
+            "cursor-grab active:cursor-grabbing p-2 hover:bg-gray-100 rounded-full transition-all",
+            isDragging ? "bg-blue-100 shadow" : ""
+          )}
+          aria-label="سحب وإفلات"
         >
-          <GripVertical className="w-4 h-4 text-gray-400" />
+          <GripVertical className={cn("w-5 h-5", isDragging ? "text-blue-600" : "text-gray-400")} />
         </div>
       </div>
-      <div className="pl-8">{children}</div>
+      <div className="pl-10">{children}</div>
     </div>
   )
 }
 
 interface SortableListProps {
   items: Array<{ id: string;[key: string]: any }>
-  onReorder: (items: Array<{ id: string;[key: string]: any }>) => void
+  onReorder: (items: Array<{ id: string; [key: string]: any }>) => void
   renderItem: (item: any, index: number) => React.ReactNode
   className?: string
 }
@@ -77,12 +89,14 @@ export function SortableList({ items, onReorder, renderItem, className }: Sortab
     if (active.id !== over?.id) {
       const oldIndex = items.findIndex((item) => item.id === active.id)
       const newIndex = items.findIndex((item) => item.id === over?.id)
-      const targetorder = items[newIndex].position || 0
       console.log("items", items);
 
-      console.log(`Reordering from index ${oldIndex} to index ${newIndex} with target order ${targetorder}`);
+      console.log(`Reordering from index ${oldIndex} to index ${newIndex}`);
 
-      const newItems = arrayMove(items, oldIndex, targetorder)
+      // Use newIndex for proper item movement
+      const newItems = arrayMove(items, oldIndex, newIndex)
+      console.log("New items after reorder:", newItems);
+      
       onReorder(newItems)
     }
 
