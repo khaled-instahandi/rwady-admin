@@ -176,7 +176,7 @@ export default function ProductsPage() {
         search: debouncedSearch,
         sort_by: sortParams.sort_by,
         sort_direction: sortParams.sort_direction,
-        filters: filterParams,
+        // filters: filterParams,
       })
 
       if (response.success) {
