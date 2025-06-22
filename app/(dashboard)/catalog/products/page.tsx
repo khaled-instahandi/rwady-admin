@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
 import { apiService, type Product, type PaginationParams } from "@/lib/api"
 import {
   Plus,
@@ -32,6 +31,7 @@ import {
   Loader2,
 } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/components/ui/use-toast"
 
 // Debounce function to optimize search input
 const useDebounce = (value: string, delay: number) => {
@@ -77,12 +77,12 @@ export default function ProductsPage() {
     sort_by: string
     sort_direction: "asc" | "desc"
   }>({
-    status: "",
-    category_id: "",
-    brand_id: "",
+    status: "any",
+    category_id: "any",
+    brand_id: "any",
     price_min: "",
     price_max: "",
-    stock_status: "",
+    stock_status: "any",
     sort_by: "NAME: A TO Z",
     sort_direction: "asc",
   })
@@ -119,6 +119,11 @@ export default function ProductsPage() {
       setLoadingFilters(false)
     }
   }, [])
+  useEffect(() => {
+    fetchCategories()
+    fetchBrands()
+  }, [fetchCategories, fetchBrands])
+
 
   // Format the sort selection for API parameters
   const getSortParams = useCallback(() => {
@@ -139,11 +144,11 @@ export default function ProductsPage() {
   // Count active filters to show on the filter button
   useEffect(() => {
     let count = 0
-    if (filters.status) count++
-    if (filters.category_id) count++
-    if (filters.brand_id) count++
+    if (filters.status && filters.status !== "any") count++
+    if (filters.category_id && filters.category_id !== "any") count++
+    if (filters.brand_id && filters.brand_id !== "any") count++
     if (filters.price_min || filters.price_max) count++
-    if (filters.stock_status) count++
+    if (filters.stock_status && filters.stock_status !== "any") count++
     setActiveFilters(count)
   }, [filters])
 
@@ -159,12 +164,12 @@ export default function ProductsPage() {
 
       // Build filter parameters
       const filterParams: Record<string, any> = {}
-      if (filters.status) filterParams.availability = filters.status === "enabled" ? 1 : 0
-      if (filters.category_id) filterParams.category_id = filters.category_id
-      if (filters.brand_id) filterParams.brand_id = filters.brand_id
+      if (filters.status && filters.status !== "any") filterParams.availability = filters.status === "enabled" ? 1 : 0
+      if (filters.category_id && filters.category_id !== "any") filterParams.category_id = filters.category_id
+      if (filters.brand_id && filters.brand_id !== "any") filterParams.brand_id = filters.brand_id
       if (filters.price_min) filterParams.price_min = filters.price_min
       if (filters.price_max) filterParams.price_max = filters.price_max
-      if (filters.stock_status) {
+      if (filters.stock_status && filters.stock_status !== "any") {
         if (filters.stock_status === "in_stock") filterParams.stock_status = "in_stock"
         if (filters.stock_status === "out_of_stock") filterParams.stock_status = "out_of_stock"
         if (filters.stock_status === "unlimited") filterParams.stock_unlimited = true
@@ -260,13 +265,13 @@ export default function ProductsPage() {
 
   const clearFilters = () => {
     setFilters({
-      status: "",
-      category_id: "",
-      brand_id: "",
+      status: "any",
+      category_id: "any",
+      brand_id: "any",
       price_min: "",
       price_max: "",
-      stock_status: "",
-      sort_by: "name",
+      stock_status: "any",
+      sort_by: "NAME: A TO Z",
       sort_direction: "asc",
     })
     setCurrentPage(1)
@@ -291,13 +296,28 @@ export default function ProductsPage() {
 
     try {
       const response = await apiService.deleteProduct(productToDelete.id)
+
       if (response.success) {
+        setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id))
+
+        // Close dialog and reset productToDelete before showing toast
+        setDeleteDialogOpen(false)
+        setProductToDelete(null)
+
+        // Clean up selected products if the deleted product was selected
+        setSelectedProducts((prev) => prev.filter(id => id !== productToDelete.id))
+
+        // Show toast after state updates
         toast({
           title: "Deleted",
-          description: "Product deleted successfully",
+          description: response.message || "Product deleted successfully",
         })
-        fetchProducts()
       } else {
+        // Close dialog first
+        setDeleteDialogOpen(false)
+        setProductToDelete(null)
+
+        // Then show error toast
         toast({
           title: "Error",
           description: response.message || "Failed to delete product",
@@ -305,14 +325,16 @@ export default function ProductsPage() {
         })
       }
     } catch (error) {
+      // Close dialog first
+      setDeleteDialogOpen(false)
+      setProductToDelete(null)
+
+      // Then show error toast
       toast({
         title: "Error",
         description: "An error occurred while deleting the product",
         variant: "destructive",
       })
-    } finally {
-      setDeleteDialogOpen(false)
-      setProductToDelete(null)
     }
   }
 
@@ -389,7 +411,7 @@ export default function ProductsPage() {
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent forceMount>
               <DropdownMenuItem>
                 <Upload className="h-4 w-4 mr-2" />
                 Import Products
@@ -441,7 +463,7 @@ export default function ProductsPage() {
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="NAME: A TO Z">NAME: A TO Z</SelectItem>
                 <SelectItem value="NAME: Z TO A">NAME: Z TO A</SelectItem>
                 <SelectItem value="PRICE: LOW TO HIGH">PRICE: LOW TO HIGH</SelectItem>
@@ -546,7 +568,7 @@ export default function ProductsPage() {
                             <ChevronDown className="h-4 w-4 ml-2" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" forceMount>
                           <DropdownMenuItem asChild>
                             <Link href={`/catalog/products/${product.id}`}>
                               <Edit className="h-4 w-4 mr-2" />
@@ -606,8 +628,30 @@ export default function ProductsPage() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+      <Dialog
+        open={deleteDialogOpen}
+        modal={true}
+        onOpenChange={(open) => {
+          // Only update if it's being closed
+          if (!open) {
+            setDeleteDialogOpen(false);
+            // Only reset productToDelete after dialog is closed with a small delay
+            setTimeout(() => {
+              setProductToDelete(null);
+            }, 100);
+          } else {
+            setDeleteDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => {
+          // Prevent interaction outside while dialog is open
+          e.preventDefault();
+        }} onEscapeKeyDown={(e) => {
+          // Allow Escape key to close the dialog without causing focus issues
+          e.preventDefault();
+          setDeleteDialogOpen(false);
+        }}>
           <DialogHeader>
             <DialogTitle>Confirm Delete</DialogTitle>
             <DialogDescription>
@@ -615,10 +659,15 @@ export default function ProductsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setDeleteDialogOpen(false);
+              // Don't reset productToDelete here, let the onOpenChange handler do it
+            }}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteProduct}>
+            <Button variant="destructive" onClick={() => {
+              handleDeleteProduct();
+            }}>
               Delete
             </Button>
           </DialogFooter>
@@ -626,8 +675,21 @@ export default function ProductsPage() {
       </Dialog>
 
       {/* Filter Dialog */}
-      <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog
+        open={filterDialogOpen}
+        modal={true}
+        onOpenChange={(open) => {
+          setFilterDialogOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => {
+          // Prevent interaction outside while dialog is open
+          e.preventDefault();
+        }} onEscapeKeyDown={(e) => {
+          // Allow Escape key to close the dialog without causing focus issues
+          e.preventDefault();
+          setFilterDialogOpen(false);
+        }}>
           <DialogHeader>
             <DialogTitle>Filter Products</DialogTitle>
             <DialogDescription>
@@ -646,8 +708,8 @@ export default function ProductsPage() {
                 <SelectTrigger>
                   <SelectValue placeholder="Any status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Any status</SelectItem>
+                <SelectContent position="popper" sideOffset={4}>
+                  <SelectItem value="any">Any status</SelectItem>
                   <SelectItem value="enabled">Enabled</SelectItem>
                   <SelectItem value="disabled">Disabled</SelectItem>
                 </SelectContent>
@@ -664,17 +726,17 @@ export default function ProductsPage() {
                 <SelectTrigger>
                   <SelectValue placeholder="Any category" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Any category</SelectItem>
+                <SelectContent position="popper" sideOffset={4}>
+                  <SelectItem value="any">Any category</SelectItem>
                   {categories.length === 0 && (
-                    <SelectItem value="" disabled  >
+                    <SelectItem value="loading" disabled>
                       <Loader2 className="animate-spin h-4 w-4 mr-2" />
                       Loading categories...
                     </SelectItem>
                   )}
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
-                      {category.name}
+                      {category.name.en}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -691,17 +753,17 @@ export default function ProductsPage() {
                 <SelectTrigger>
                   <SelectValue placeholder="Any brand" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Any brand</SelectItem>
+                <SelectContent position="popper" sideOffset={4}>
+                  <SelectItem value="any">Any brand</SelectItem>
                   {brands.length === 0 && (
-                    <SelectItem value="" disabled>
+                    <SelectItem value="loading" disabled>
                       <Loader2 className="animate-spin h-4 w-4 mr-2" />
                       Loading brands...
                     </SelectItem>
                   )}
                   {brands.map((brand) => (
                     <SelectItem key={brand.id} value={brand.id}>
-                      {brand.name}
+                      {brand.name.en}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -739,8 +801,8 @@ export default function ProductsPage() {
                 <SelectTrigger>
                   <SelectValue placeholder="Any stock status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Any stock status</SelectItem>
+                <SelectContent position="popper" sideOffset={4}>
+                  <SelectItem value="any">Any stock status</SelectItem>
                   <SelectItem value="in_stock">In Stock</SelectItem>
                   <SelectItem value="out_of_stock">Out of Stock</SelectItem>
                   <SelectItem value="unlimited">Unlimited Stock</SelectItem>
