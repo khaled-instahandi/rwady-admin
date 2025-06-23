@@ -43,7 +43,7 @@ export function ProductAssignmentModal({
     try {
       const response = await apiService.getProducts({
         page: currentPage,
-        per_page: 100, // Load more products for better filtering
+        limit: 100, // Load more products for better filtering
         search: searchTerm,
       })
 

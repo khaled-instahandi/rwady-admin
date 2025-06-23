@@ -74,7 +74,7 @@ export default function BulkProductEditor() {
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const response = await apiService.getProducts({ per_page: 100 })
+      const response = await apiService.getProducts({ limit: 100 })
 
       if (response.success) {
         setProducts(response.data)

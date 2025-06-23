@@ -190,7 +190,7 @@ export default function ProductsPage() {
 
       const response = await apiService.getProducts({
         page: currentPage,
-        per_page: 20,
+        limit: 20,
         search: debouncedSearch,
         sort_by: sortParams.sort_by,
         sort_direction: sortParams.sort_direction,
@@ -226,8 +226,8 @@ export default function ProductsPage() {
     setLoadingFilters(true)
     try {
       const [categoriesResponse, brandsResponse] = await Promise.all([
-        apiService.getCategories({ page: 1, per_page: 100 }),
-        apiService.getBrands({ page: 1, per_page: 100 }),
+        apiService.getCategories({ page: 1, limit: 100 }),
+        apiService.getBrands({ page: 1, limit: 100 }),
       ])
 
       if (categoriesResponse.success) {

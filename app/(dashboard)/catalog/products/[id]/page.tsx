@@ -551,7 +551,7 @@ export default function ProductEditPage() {
         setSearchResults(localResults.slice(0, 50))
       } else {
         // Otherwise, search via API for more comprehensive results
-        const response = await apiService.getProducts({ search: query, per_page: 50 })
+        const response = await apiService.getProducts({ search: query, limit: 50 })
         if (response.success && response.data) {
           // Filter out the current product
           const filteredResults = response.data
@@ -1056,7 +1056,7 @@ export default function ProductEditPage() {
   const loadAllProducts = async () => {
     try {
       setLoadingProducts(true)
-      const response = await apiService.getProducts({ per_page: 1000 }) // Load many products
+      const response = await apiService.getProducts({ limit: 1000 }) // Load many products
       if (response.success && response.data) {
         // Filter out the current product and format the data
         const formattedProducts = response.data

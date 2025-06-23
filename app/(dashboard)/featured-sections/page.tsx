@@ -74,7 +74,7 @@ export default function FeaturedSectionsPage() {
     try {
       const response = await apiService.getFeaturedSections({
         page: currentPage,
-        per_page: itemsPerPage,
+        limit: itemsPerPage,
         search: searchTerm,
         sort_by: sortBy,
         sort_direction: sortDirection,

@@ -181,7 +181,7 @@ export interface ApiResponse<T> {
   meta?: {
     current_page: number
     last_page: number
-    per_page: number
+    limit: number
     total: number
   }
   message?: string
@@ -189,7 +189,7 @@ export interface ApiResponse<T> {
 
 export interface PaginationParams {
   page?: number
-  per_page?: number
+  limit?: number
   search?: string
   sort_by?: string
   category_id?: number
@@ -234,7 +234,7 @@ class ApiService {
     const queryParams = new URLSearchParams()
 
     if (params.page) queryParams.append("page", params.page.toString())
-    if (params.per_page) queryParams.append("per_page", params.per_page.toString())
+    if (params.limit) queryParams.append("limit", params.limit.toString())
     if (params.search) queryParams.append("search", params.search)
     if (params.sort_by) queryParams.append("sort_by", params.sort_by)
     if (params.sort_direction) queryParams.append("sort_direction", params.sort_direction)

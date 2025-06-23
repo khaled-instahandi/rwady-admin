@@ -96,12 +96,12 @@ export default function HomeSectionsPage() {
     try {
       const response = await apiService.getHomeSections({
         page: currentPage,
-        per_page: itemsPerPage,
+        limit: itemsPerPage,
         search: searchTerm,
-        sort_by: sortBy,
-        sort_direction: sortDirection,
-        type: filterType !== "all" ? filterType : undefined,
-        availability: filterStatus !== "all" ? (filterStatus === "active" ? 1 : 0) : undefined,
+        // sort_by: sortBy,
+        // sort_direction: sortDirection,
+        // type: filterType !== "all" ? filterType : undefined,
+        // availability: filterStatus !== "all" ? (filterStatus === "active" ? 1 : 0) : undefined,
 
       })
 
