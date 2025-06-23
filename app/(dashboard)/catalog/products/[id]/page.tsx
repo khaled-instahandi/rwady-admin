@@ -59,7 +59,7 @@ interface ProductFormData {
   availability: boolean
   stock: number
   stock_unlimited: boolean | null
-  out_of_stock: "hide_from_storefront" | "show_on_storefront" | "show_and_allow_pre_order" | "show_as_sold_out"
+  out_of_stock: "hide_from_storefront" | "show_on_storefront" | "show_and_allow_pre_order"
   minimum_purchase: number
   maximum_purchase: number
   requires_shipping: boolean
@@ -75,6 +75,9 @@ interface ProductFormData {
   ribbon_color?: string | null
   categories?: number[]
   brands?: number[]
+  // Add explicit support for images and videos according to API spec
+  images?: string[]
+  videos?: string[]
 
   seo?: {
     meta_title: string
@@ -100,6 +103,9 @@ export default function ProductEditPage() {
   const [videos, setVideos] = useState<Array<{ url: string; type: "file" | "link" }>>([])
   const [colors, setColors] = useState<string[]>([])
   const [newColor, setNewColor] = useState("#000000")
+  const [availableColors, setAvailableColors] = useState<Array<{ name: { ar: string; en: string }; code: string }>>([])
+  const [colorSelectionType, setColorSelectionType] = useState<"predefined" | "custom">("predefined")
+  const [selectedPredefinedColor, setSelectedPredefinedColor] = useState<string>("")
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
@@ -108,7 +114,15 @@ export default function ProductEditPage() {
   const [availableBrands, setAvailableBrands] = useState<{ id: number; name: string }[]>([])
   const [relatedProducts, setRelatedProducts] = useState<{ id: number; name: string; price: number; image?: string }[]>([])
   const [searchRelatedQuery, setSearchRelatedQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<{ id: number; name: string; price: number; image?: string }[]>([])
+  const [searchResults, setSearchResults] = useState<{
+    id: number; name: string; price: number; image?: string,
+
+
+    //  add media array to search results
+    media?: Array<{ url: string; type: "image" | "video" }>
+  }[]>([])
+  const [allAvailableProducts, setAllAvailableProducts] = useState<{ id: number; name: string; price: number; image?: string }[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
 
   const isEditMode = params.id !== "new"
   const productId = isEditMode ? Number(params.id) : null
@@ -125,7 +139,9 @@ export default function ProductEditPage() {
     minimum_purchase: 1,
     maximum_purchase: 999,
     requires_shipping: false,
-    shipping_type: "fixed_shipping",
+    shipping_type: "default",
+    shipping_rate_single: 0,
+    shipping_rate_multi: 0,
     is_recommended: false,
   })
 
@@ -134,6 +150,8 @@ export default function ProductEditPage() {
   // Load product data, categories and brands when initializing
   useEffect(() => {
     fetchCategoriesAndBrands()
+    fetchAvailableColors()
+    loadAllProducts() // Load all products for related products selection
     if (isEditMode && productId) {
       loadProduct()
     } else {
@@ -296,7 +314,7 @@ export default function ProductEditPage() {
           is_recommended: product.is_recommended,
           ribbon_text: product.ribbon_text || { ar: "", en: "" },
           ribbon_color: product.ribbon_color,
-          categories: (product as any).ct.categories?.map((cat: Category) => cat.id),
+          categories: (product as any).categories?.map((cat: Category) => cat.id),
           brands: (product as any).brands?.map((brand: Brand) => brand.id) || [],
           related_category_id: product.related_category_id,
           related_category_limit: product.related_category_limit,
@@ -312,29 +330,111 @@ export default function ProductEditPage() {
         setFormData(productFormData)
         setOriginalFormData(productFormData)
 
-        // Set images and colors
-        if (product.media) {
-          const productImages = product.media
-            .filter((m) => m.type === "image")
-            .map((m) => ({ url: m.url, name: m.path }))
-          setImages(productImages)
-
-          const productVideos = product.media
-            .filter((m) => m.type === "video")
-            .map((m) => ({ url: m.url, type: m.source as "file" | "link" }))
-          setVideos(productVideos)
+        // Load related products if they exist
+        if (product.related_products && product.related_products.length > 0) {
+          const relatedProductsWithDetails = product.related_products.map((rp: any) => ({
+            id: rp.id,
+            name: rp.name?.ar || rp.name?.en || rp.name || "Unknown Product",
+            price: rp.price || 0,
+            image: rp.image || "/placeholder.svg"
+          }));
+          setRelatedProducts(relatedProductsWithDetails);
         }
 
+        // Set images and videos from media array (API format with objects)
+        if ((product as any).media && Array.isArray((product as any).media)) {
+          const mediaArray = (product as any).media;
+          const productImages: Array<{ url: string; name: string }> = [];
+          const productVideos: Array<{ url: string; type: "file" | "link" }> = [];
+
+          console.log("Raw API response media:", mediaArray);
+          console.log("Media array type:", typeof mediaArray);
+          console.log("Media array length:", mediaArray.length);
+
+          mediaArray.forEach((item: any, index: number) => {
+            console.log(`Processing media item ${index}:`, item);
+            console.log(`Item type: ${typeof item}, has type property: ${item?.type}`);
+
+            // Check if it's an object with type property (new API format)
+            if (item && typeof item === 'object' && item.type) {
+              console.log(`Processing object with type: ${item.type}`);
+              if (item.type === 'image') {
+                const imageUrl = item.url || (item.path ? (item.path.startsWith('http') ? item.path : `/${item.path}`) : '');
+                console.log(`Adding image with URL: ${imageUrl}`);
+                productImages.push({
+                  url: imageUrl,
+                  name: item.path || item.url || `image-${index}`
+                });
+              } else if (item.type === 'video') {
+                const videoUrl = item.url || item.path || '';
+                console.log(`Adding video with URL: ${videoUrl}`);
+                productVideos.push({
+                  url: videoUrl,
+                  type: item.source === 'link' ? 'link' : 'file'
+                });
+              }
+            }
+            // Fallback: if it's a string (old format)
+            else if (typeof item === 'string') {
+              console.log(`Processing string item: ${item}`);
+              // Check if it's a video URL (contains common video platforms or video file extensions)
+              if (item.includes('youtube.com') || item.includes('youtu.be') ||
+                item.includes('vimeo.com') || item.includes('dailymotion.com') ||
+                item.endsWith('.mp4') || item.endsWith('.avi') || item.endsWith('.mov') ||
+                item.endsWith('.wmv') || item.endsWith('.flv') || item.endsWith('.webm')) {
+                productVideos.push({
+                  url: item,
+                  type: item.startsWith('http') ? 'link' : 'file'
+                });
+              } else {
+                // Assume it's an image
+                productImages.push({
+                  url: item.startsWith('http') ? item : `/${item}`,
+                  name: item
+                });
+              }
+            }
+          });
+
+          console.log("Final processed images:", productImages);
+          console.log("Final processed videos:", productVideos);
+
+          setImages(productImages);
+          setVideos(productVideos);
+        }
+        // Fallback to separate images/videos arrays (if API returns them separately)
+        else {
+          // Set images
+          if ((product as any).images && Array.isArray((product as any).images)) {
+            const productImages = (product as any).images.map((path: string) => ({
+              url: path.startsWith('http') ? path : `/${path}`,
+              name: path
+            }));
+            setImages(productImages);
+          }
+
+          // Set videos
+          if ((product as any).videos && Array.isArray((product as any).videos)) {
+            const productVideos = (product as any).videos.map((path: string) => ({
+              url: path,
+              type: path.startsWith('http') ? 'link' as const : 'file' as const
+            }));
+            setVideos(productVideos);
+          }
+        }
+
+        // Set colors - in new format colors is a simple array of hex values
         if (product.colors) {
-          setColors(product.colors.map((c) => c.color))
+          if (Array.isArray((product as any).colors) && typeof (product as any).colors[0] === 'string') {
+            setColors((product as any).colors);
+          } else if (Array.isArray(product.colors)) {
+            setColors(product.colors.map((c) => c.color));
+          }
         }
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to load product",
-          variant: "destructive",
-        })
-        router.push("/catalog/products")
+        console.log("Failed to load product data:", response.message);
+
+        // router.push("/catalog/products")
       }
     } catch (error) {
       console.error("Error loading product:", error)
@@ -343,7 +443,7 @@ export default function ProductEditPage() {
         description: "An error occurred while loading the product",
         variant: "destructive",
       })
-      router.push("/catalog/products")
+      // router.push("/catalog/products")
     } finally {
       setInitialLoading(false)
     }
@@ -377,6 +477,32 @@ export default function ProductEditPage() {
     }
   }
 
+  const fetchAvailableColors = async () => {
+    try {
+      // Using fetch directly since apiService might not have this endpoint
+      const response = await apiService.getProductColors()
+
+      if (response.success && response.data) {
+        // Map the API response data to match our expected state structure
+        const formattedColors = response.data.map(color => ({
+          name: {
+            ar: color.name?.ar || "",
+            en: color.name?.en || ""
+          },
+          code: color.color || color.code || ""
+        }));
+        setAvailableColors(formattedColors)
+      }
+    } catch (error) {
+      console.error("Error fetching colors:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load available colors",
+        variant: "destructive",
+      })
+    }
+  }
+
   // Flatten the category tree into a one-level array for the dropdown
   const flattenCategories = (categories: any[], parentPath = "", result: any[] = []) => {
     categories.forEach((category) => {
@@ -396,24 +522,36 @@ export default function ProductEditPage() {
   // Search for products for related products section
   const searchProducts = async (query: string) => {
     if (!query || query.length < 2) {
-      setSearchResults([])
+      // If no search query, show first 50 products from all available products
+      setSearchResults(allAvailableProducts.slice(0, 50))
       return
     }
 
     try {
-      const response = await apiService.getProducts({ search: query, per_page: 10 })
-      if (response.success && response.data) {
-        // Filter out the current product and already selected products
-        const filteredResults = response.data
-          .filter(p => p.id !== productId)
-          .map(product => ({
-            id: product.id,
-            name: product.name.ar || product.name.en || "Unknown",
-            price: product.price,
-            image: product.media?.find(m => m.type === "image")?.url || "/placeholder.svg"
-          }));
+      // First, search locally in already loaded products
+      const localResults = allAvailableProducts.filter(product =>
+        product.name.toLowerCase().includes(query.toLowerCase())
+      )
 
-        setSearchResults(filteredResults)
+      // If we have good local results, use them
+      if (localResults.length >= 10) {
+        setSearchResults(localResults.slice(0, 50))
+      } else {
+        // Otherwise, search via API for more comprehensive results
+        const response = await apiService.getProducts({ search: query, per_page: 50 })
+        if (response.success && response.data) {
+          // Filter out the current product
+          const filteredResults = response.data
+            .filter(p => p.id !== productId)
+            .map(product => ({
+              id: product.id,
+              name: product.name.ar || product.name.en || "Unknown",
+              price: product.price,
+              image: product.media?.find((m: any) => m.type === "image")?.url || "/placeholder.svg"
+            }));
+
+          setSearchResults(filteredResults)
+        }
       }
     } catch (error) {
       console.error("Error searching products:", error)
@@ -429,18 +567,25 @@ export default function ProductEditPage() {
   const addRelatedProduct = (product: { id: number; name: string; price: number; image?: string }) => {
     const isAlreadyAdded = relatedProducts.some(p => p.id === product.id)
     if (!isAlreadyAdded) {
-      setRelatedProducts(prev => [...prev, product])
+      const newRelatedProducts = [...relatedProducts, product]
+      setRelatedProducts(newRelatedProducts)
 
       // Update the formData
       setFormData(prev => ({
         ...prev,
         related_products: [...(prev.related_products || []), product.id]
       }))
+
+      toast({
+        title: "Success",
+        description: `Added "${product.name}" to related products`,
+      })
     }
   }
 
   // Remove a related product
   const removeRelatedProduct = (productId: number) => {
+    const productToRemove = relatedProducts.find(p => p.id === productId)
     setRelatedProducts(prev => prev.filter(p => p.id !== productId))
 
     // Update the formData
@@ -448,6 +593,13 @@ export default function ProductEditPage() {
       ...prev,
       related_products: (prev.related_products || []).filter(id => id !== productId)
     }))
+
+    if (productToRemove) {
+      toast({
+        title: "Success",
+        description: `Removed "${productToRemove.name}" from related products`,
+      })
+    }
   }
 
   // Handle search input changes with debounce
@@ -459,145 +611,37 @@ export default function ProductEditPage() {
     return () => clearTimeout(timer)
   }, [searchRelatedQuery])
 
-  // Show save notification
+  // Load related products when loading a product
   useEffect(() => {
-    if (hasUnsavedChanges && !showSaveNotification) {
-      setShowSaveNotification(true)
+    if (isEditMode && formData.related_products && formData.related_products.length > 0) {
+      // Load related products details
+      loadRelatedProductsDetails()
     }
-  }, [hasUnsavedChanges])
+  }, [formData.related_products])
 
-  // Keyboard shortcut for save
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault()
-        handleSubmit()
-      }
+  const loadRelatedProductsDetails = async () => {
+    if (!formData.related_products || formData.related_products.length === 0) return
+
+    try {
+      const productPromises = formData.related_products.map(async (productId) => {
+        const response = await apiService.getProduct(productId)
+        if (response.success && response.data) {
+          return {
+            id: response.data.id,
+            name: response.data.name.ar || response.data.name.en || "Unknown",
+            price: response.data.price,
+            image: response.data.media?.find((m: any) => m.type === "image")?.url || "/placeholder.svg"
+          }
+        }
+        return null
+      })
+
+      const products = (await Promise.all(productPromises)).filter(Boolean) as Array<{ id: number; name: string; price: number; image?: string }>
+      setRelatedProducts(products)
+    } catch (error) {
+      console.error("Error loading related products:", error)
     }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
-
-  // Prevent navigation with unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault()
-        e.returnValue = ""
-      }
-    }
-
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [hasUnsavedChanges])
-
-  // const loadProduct = async () => {
-  //   if (!productId) return
-
-  //   try {
-  //     setInitialLoading(true)
-  //     const response = await apiService.getProduct(productId)
-
-  //     if (response.success && response.data) {
-  //       const product = response.data
-  //       const productFormData: ProductFormData = {
-  //         name: product.name,
-  //         description: product.description,
-  //         sku: product.sku,
-  //         price: product.price,
-  //         price_after_discount: product.price_after_discount,
-  //         price_discount_start: product.price_discount_start,
-  //         price_discount_end: product.price_discount_end,
-  //         cost_price: product.cost_price,
-  //         cost_price_after_discount: product.cost_price_after_discount,
-  //         cost_price_discount_start: product.cost_price_discount_start,
-  //         cost_price_discount_end: product.cost_price_discount_end,
-  //         availability: product.availability,
-  //         stock: product.stock,
-  //         stock_unlimited: product.stock_unlimited,
-  //         out_of_stock: product.out_of_stock,
-  //         minimum_purchase: product.minimum_purchase,
-  //         maximum_purchase: product.maximum_purchase,
-  //         requires_shipping: product.requires_shipping,
-  //         weight: product.weight,
-  //         length: product.length,
-  //         width: product.width,
-  //         height: product.height,
-  //         shipping_type: product.shipping_type,
-  //         shipping_rate_single: product.shipping_rate_single,
-  //         shipping_rate_multi: product.shipping_rate_multi,
-  //         is_recommended: product.is_recommended,
-  //         ribbon_text: product.ribbon_text || { ar: "", en: "" },
-  //         ribbon_color: product.ribbon_color,
-  //         categories: product.categories?.map(cat => cat.id),
-  //         brands: product.brands?.map(brand => brand.id),
-  //         related_category_id: product.related_category_id,
-  //         related_category_limit: product.related_category_limit,
-  //         related_products: product.related_products?.map(p => p.id),
-  //         seo: product.seo || {
-  //           meta_title: "",
-  //           meta_description: "",
-  //           keywords: "",
-  //           image: ""
-  //         }
-  //       }
-
-  //       setFormData(productFormData)
-  //       setOriginalFormData(productFormData)
-
-  //       // Set images and colors
-  //       if (product.media) {
-  //         const productImages = product.media
-  //           .filter((m) => m.type === "image")
-  //           .map((m) => ({ url: m.url, name: m.path }))
-  //         setImages(productImages)
-
-  //         const productVideos = product.media
-  //           .filter((m) => m.type === "video")
-  //           .map((m) => ({ url: m.url, type: m.source as "file" | "link" }))
-  //         setVideos(productVideos)
-  //       }
-
-  //       if (product.colors) {
-  //         setColors(product.colors.map((c) => c.color))
-  //       }
-  //     } else {
-  //       toast({
-  //         title: "Error",
-  //         description: "Failed to load product",
-  //         variant: "destructive",
-  //       })
-  //       router.push("/catalog/products")
-  //     }
-  //   } catch (error) {
-  //     console.error("Error loading product:", error)
-  //     toast({
-  //       title: "Error",
-  //       description: "An error occurred while loading the product",
-  //       variant: "destructive",
-  //     })
-  //     router.push("/catalog/products")
-  //   } finally {
-  //     setInitialLoading(false)
-  //   }
-  // }
-
-  // Search related products
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchRelatedQuery.trim() === "") {
-        setSearchResults([])
-      } else {
-        const filteredProducts = relatedProducts.filter((product) =>
-          product.name.toLowerCase().includes(searchRelatedQuery.toLowerCase())
-        )
-        setSearchResults(filteredProducts)
-      }
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [searchRelatedQuery, relatedProducts])
+  }
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({
@@ -616,6 +660,43 @@ export default function ProductEditPage() {
     }))
   }
 
+  const handleShippingTypeChange = (shippingType: string) => {
+    const validShippingType = shippingType as "default" | "fixed_shipping" | "free_shipping" | "calculated_shipping";
+
+    setFormData((prev) => {
+      const newFormData = {
+        ...prev,
+        shipping_type: validShippingType,
+      }
+
+      // If switching to fixed_shipping and no rate is set, set a default
+      if (validShippingType === "fixed_shipping" && (!prev.shipping_rate_single || prev.shipping_rate_single === 0)) {
+        newFormData.shipping_rate_single = 5000 // Default 5000 IQD
+      }
+
+      return newFormData
+    })
+  }
+
+  const addVideo = (url: string) => {
+    if (url && url.trim()) {
+      const trimmedUrl = url.trim()
+      // Basic URL validation
+      if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://') || trimmedUrl.startsWith('www.')) {
+        setVideos((prev) => [...prev, { url: trimmedUrl, type: "link" }])
+        return true
+      } else {
+        toast({
+          title: "Invalid URL",
+          description: "Please enter a valid URL starting with http:// or https://",
+          variant: "destructive",
+        })
+        return false
+      }
+    }
+    return false
+  }
+
   const addImage = (imageUrl: string, imageName: string) => {
     setImages((prev) => [...prev, { url: imageUrl, name: imageName }])
   }
@@ -625,9 +706,29 @@ export default function ProductEditPage() {
   }
 
   const addColor = () => {
-    if (newColor && !colors.includes(newColor)) {
-      setColors((prev) => [...prev, newColor])
-      setNewColor("#000000")
+    let colorToAdd = ""
+
+    if (colorSelectionType === "predefined" && selectedPredefinedColor) {
+      colorToAdd = selectedPredefinedColor
+    } else if (colorSelectionType === "custom" && newColor) {
+      colorToAdd = newColor
+    }
+
+    if (colorToAdd && !colors.includes(colorToAdd)) {
+      setColors((prev) => [...prev, colorToAdd])
+
+      // Reset the inputs
+      if (colorSelectionType === "predefined") {
+        setSelectedPredefinedColor("")
+      } else {
+        setNewColor("#000000")
+      }
+    }
+  }
+
+  const addPredefinedColor = (colorCode: string) => {
+    if (colorCode && !colors.includes(colorCode)) {
+      setColors((prev) => [...prev, colorCode])
     }
   }
 
@@ -671,47 +772,83 @@ export default function ProductEditPage() {
         return
       }
 
+      // Validate shipping settings
+      if (formData.requires_shipping && formData.shipping_type === "fixed_shipping" && (!formData.shipping_rate_single || formData.shipping_rate_single <= 0)) {
+        toast({
+          title: "Validation Error",
+          description: "Shipping rate is required when using fixed shipping",
+          variant: "destructive",
+        })
+        setActiveTab("shipping") // Switch to shipping tab to show the error
+        return
+      }
+
       // Prepare the product data for API submission
+      console.log("Images:", images.map(img => img.name));
+      console.log("Videos:", videos.map(video => video.url));
+      console.log("Final media array:", [
+        ...images.map(img => img.name),
+        ...videos.map(video => video.url),
+      ]);
+
       const productData = {
         ...formData,
-        // Format media (images and videos)
+        // Format images and videos together as media array
         media: [
-          ...images.map((img, index) => ({
-            path: img.name,
-            url: img.url,
-            type: "image",
-            source: "file",
-            orders: index
-          })),
-          ...videos.map((video, index) => ({
-            path: video.url,
-            url: video.url,
-            type: "video",
-            source: video.type,
-            orders: images.length + index
-          }))
+          ...images.map(img => img.name),
+          ...videos.map(video => video.url),
         ],
-        // Format colors
-        colors: colors.map(color => ({ color })),
+
+        // Format colors as an array of hex values
+        colors: colors,
 
         // Ensure all related fields are properly formatted
-        stock_unlimited: formData.stock_unlimited === true,
+        // Ensure proper format for all fields
         sku: formData.sku || null,
 
-        // Make sure all dates are in the correct format
+        // Required fields with proper formatting
+        name: formData.name,
+        description: formData.description,
+        ribbon_text: formData.ribbon_text || { ar: "", en: "" },
+        ribbon_color: formData.ribbon_color || "#ffffff",
+        is_recommended: formData.is_recommended || false,
+
+        // Price information
+        price: formData.price,
+        price_after_discount: formData.price_after_discount || null,
         price_discount_start: formData.price_discount_start || null,
         price_discount_end: formData.price_discount_end || null,
+        cost_price: formData.cost_price || formData.price,
+        cost_price_after_discount: formData.cost_price_after_discount || null,
         cost_price_discount_start: formData.cost_price_discount_start || null,
         cost_price_discount_end: formData.cost_price_discount_end || null,
 
-        // Make sure related products is always an array
+        // Stock information
+        availability: formData.availability,
+        stock: formData.stock || 0,
+        stock_unlimited: formData.stock_unlimited || null,
+        out_of_stock: formData.out_of_stock || "hide_from_storefront", // options: show_on_storefront, hide_from_storefront, show_and_allow_pre_order
+        minimum_purchase: formData.minimum_purchase || 1,
+        maximum_purchase: formData.maximum_purchase || 5,
+
+        // Shipping information
+        requires_shipping: formData.requires_shipping || false,
+        weight: formData.weight || null,
+        length: formData.length || null,
+        width: formData.width || null,
+        height: formData.height || null,
+        shipping_type: formData.shipping_type || "fixed_shipping", // options: default, fixed_shipping, free_shipping
+        shipping_rate_single: formData.shipping_type === "fixed_shipping" ? (formData.shipping_rate_single || 0) : (formData.shipping_rate_single || null),
+        shipping_rate_multi: formData.shipping_rate_multi || null,
+
+        // Categories and related products
+        categories: formData.categories || [],
+        brands: formData.brands || [],
+        related_category_id: formData.related_category_id === undefined ? null : formData.related_category_id, // 0 for all categories, null for none
+        related_category_limit: formData.related_category_limit || 5, // Default is 5
         related_products: formData.related_products || [],
 
-        // Make sure related category fields are properly formatted
-        related_category_id: formData.related_category_id || null,
-        related_category_limit: formData.related_category_limit || 5,
-
-        // Ensure SEO data is properly formatted
+        // SEO data
         seo: formData.seo || {
           meta_title: "",
           meta_description: "",
@@ -755,6 +892,42 @@ export default function ProductEditPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAllProducts = async () => {
+    try {
+      setLoadingProducts(true)
+      const response = await apiService.getProducts({ per_page: 1000 }) // Load many products
+      if (response.success && response.data) {
+        // Filter out the current product and format the data
+        const formattedProducts = response.data
+          .filter(p => p.id !== productId)
+          .map(product => ({
+            id: product.id,
+            name: product.name.ar || product.name.en || "Unknown",
+            price: product.price,
+            image: product.media?.find((m: any) => m.type === "image")?.url || "/placeholder.svg"
+          }));
+
+        setAllAvailableProducts(formattedProducts)
+
+        // If no search query, show first 50 products as initial results
+        if (!searchRelatedQuery) {
+          setSearchResults(formattedProducts.slice(0, 50))
+        }
+
+        console.log(`Loaded ${formattedProducts.length} products from API`)
+      }
+    } catch (error) {
+      console.error("Error loading all products:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load products",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingProducts(false)
     }
   }
 
@@ -823,11 +996,11 @@ export default function ProductEditPage() {
         {/* Main Content */}
         <div className="lg:col-span-2">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="general">General</TabsTrigger>
               {/* <TabsTrigger value="attributes">Attributes</TabsTrigger> */}
               <TabsTrigger value="options">Options</TabsTrigger>
-              <TabsTrigger value="files">Files</TabsTrigger>
+              {/* <TabsTrigger value="files">Files</TabsTrigger> */}
               <TabsTrigger value="shipping">Shipping & Pickup</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
               <TabsTrigger value="related">Related Products</TabsTrigger>
@@ -836,6 +1009,113 @@ export default function ProductEditPage() {
 
             {/* General Tab */}
             <TabsContent value="general" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Product Files</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <Label className="text-base font-medium">Images</Label>
+                    <p className="text-sm text-gray-600 mb-2">Current images: {images.length}</p>
+                    <div className="mt-2 grid grid-cols-4 gap-4">
+                      {images.map((image, index) => {
+                        console.log(`Rendering image ${index}:`, image);
+                        return (
+                          <div key={index} className="relative group">
+                            <img
+                              src={image.url || "/placeholder.svg"}
+                              alt={`Product ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border"
+                              onError={(e) => {
+                                console.error(`Failed to load image ${index}:`, image.url);
+                                (e.target as HTMLImageElement).src = "/placeholder.svg";
+                              }}
+                              onLoad={() => console.log(`Successfully loaded image ${index}:`, image.url)}
+                            />
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 opacity-0 group-hover:opacity-100"
+                              onClick={() => removeImage(index)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                      <ImageUpload value="" onChange={addImage} folder="products" className="h-32" />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <Label className="text-base font-medium">Videos</Label>
+                    <p className="text-sm text-gray-600 mb-2">Current videos: {videos.length}</p>
+                    <div className="mt-2 space-y-3">
+                      {videos.map((video, index) => (
+                        <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
+                          <Video className="h-5 w-5 text-gray-400" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium break-all">{video.url}</p>
+                            <p className="text-xs text-gray-500">
+                              {video.url.includes('youtube.com') || video.url.includes('youtu.be') ? 'YouTube Video' :
+                                video.url.includes('vimeo.com') ? 'Vimeo Video' :
+                                  video.type === "link" ? "External link" : "Uploaded file"}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setVideos((prev) => prev.filter((_, i) => i !== index))}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+
+                      {/* Add Video URL Input */}
+                      <div className="flex gap-2">
+                        <Input
+                          id="video-url-input"
+                          placeholder="Enter video URL (YouTube, Vimeo, etc.)"
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              const input = e.target as HTMLInputElement
+                              const url = input.value.trim()
+                              if (url && addVideo(url)) {
+                                input.value = ""
+                              }
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            const input = document.getElementById('video-url-input') as HTMLInputElement
+                            const url = input?.value.trim()
+                            if (url && addVideo(url)) {
+                              input.value = ""
+                            }
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Video
+                        </Button>
+                      </div>
+
+                      <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                        <strong>How to add videos:</strong><br />
+                        • Paste YouTube, Vimeo, or any video URL<br />
+                        • Press Enter or click "Add Video" button<br />
+                        • You can add multiple videos<br />
+                        • Example: https://www.youtube.com/watch?v=QHk8N1Xaj8I
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1105,77 +1385,166 @@ export default function ProductEditPage() {
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                           <Input
                             placeholder="Search products to add..."
-                            className="pl-10"
+                            className="pl-10 pr-10"
                             value={searchRelatedQuery}
                             onChange={(e) => setSearchRelatedQuery(e.target.value)}
                           />
+                          {searchRelatedQuery && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                              onClick={() => {
+                                setSearchRelatedQuery("")
+                                setSearchResults(allAvailableProducts.slice(0, 50))
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSearchRelatedQuery("")
+                              setSearchResults(allAvailableProducts.slice(0, 50))
+                            }}
+                            disabled={loadingProducts}
+                          >
+                            Show All Products
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              loadAllProducts()
+                            }}
+                            disabled={loadingProducts}
+                          >
+                            {loadingProducts ? "Loading..." : "Refresh"}
+                          </Button>
                         </div>
                       </div>
 
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {/* Selected related products */}
-                        {relatedProducts.length > 0 ? (
-                          <div className="space-y-2">
-                            <Label>Selected Products</Label>
-                            {relatedProducts.map((product) => (
-                              <div key={product.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                                <div className="flex items-center gap-3">
-                                  <img
-                                    src={product.image || "/placeholder.svg"}
-                                    alt={product.name}
-                                    className="w-10 h-10 rounded object-cover"
-                                  />
-                                  <div>
-                                    <p className="font-medium">{product.name}</p>
-                                    <p className="text-sm text-gray-500">{product.price} IQD</p>
-                                  </div>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => removeRelatedProduct(product.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
+                      <div className="space-y-2">
+                        {/* Display all available products with checkboxes */}
+                        <div className="max-h-64 overflow-y-auto border rounded-lg">
+                          <div className="p-3 border-b bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <Label className="font-medium">Available Products</Label>
+                              <span className="text-sm text-gray-500">
+                                {loadingProducts ? (
+                                  "Loading..."
+                                ) : (
+                                  `Showing ${searchResults.length} of ${allAvailableProducts.length} products`
+                                )}
+                              </span>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="text-center py-4 text-gray-500">
-                            No related products selected. Search for products to add.
-                          </div>
-                        )}
 
-                        {/* Search results */}
-                        {searchResults.length > 0 && searchRelatedQuery && (
-                          <div className="mt-4 space-y-2">
-                            <Label>Search Results</Label>
-                            {searchResults.map((product) => {
+                          {loadingProducts ? (
+                            <div className="text-center py-8 text-gray-500">
+                              <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                              <p>Loading products...</p>
+                            </div>
+                          ) : searchResults.length > 0 ? (
+                            searchResults.map((product) => {
                               const isSelected = relatedProducts.some(p => p.id === product.id);
                               return (
-                                <div key={product.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                                  <div className="flex items-center gap-3">
-                                    <img
-                                      src={product.image || "/placeholder.svg"}
-                                      alt={product.name}
-                                      className="w-10 h-10 rounded object-cover"
-                                    />
-                                    <div>
-                                      <p className="font-medium">{product.name}</p>
-                                      <p className="text-sm text-gray-500">{product.price} IQD</p>
-                                    </div>
+                                <div key={product.id} className="flex items-center p-3 border-b hover:bg-gray-50">
+                                  <input
+                                    type="checkbox"
+                                    id={`product-${product.id}`}
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        addRelatedProduct(product);
+                                      } else {
+                                        removeRelatedProduct(product.id);
+                                      }
+                                    }}
+                                    className="mr-3"
+                                  />
+                                  <img
+                                    src={product.media?.[0]?.url}
+                                    alt={product.name}
+                                    className="w-10 h-10 rounded object-cover mr-3"
+                                  />
+                                  <div className="flex-1">
+                                    <Label
+                                      htmlFor={`product-${product.id}`}
+                                      className="font-medium cursor-pointer"
+                                    >
+                                      {product.name}
+                                    </Label>
+                                    <p className="text-sm text-gray-500">{product.price} IQD</p>
+                                    <p className="text-xs text-gray-400">ID: {product.id}</p>
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    variant={isSelected ? "outline" : "secondary"}
-                                    onClick={() => isSelected ? removeRelatedProduct(product.id) : addRelatedProduct(product)}
-                                    disabled={isSelected}
-                                  >
-                                    {isSelected ? "Added" : "Add"}
-                                  </Button>
                                 </div>
                               );
-                            })}
+                            })
+                          ) : searchRelatedQuery ? (
+                            <div className="text-center py-4 text-gray-500">
+                              <Search className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                              <p>No products found for "{searchRelatedQuery}"</p>
+                              <p className="text-xs">Try searching with different keywords</p>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <Search className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                              <p className="font-medium">Ready to browse products</p>
+                              <p className="text-sm">Click "Show All Products" to see available products</p>
+                              <p className="text-sm">or search for specific products by name</p>
+                              {allAvailableProducts.length > 0 && (
+                                <p className="text-xs mt-2 text-blue-600">{allAvailableProducts.length} products loaded from API</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Selected products summary */}
+                        {relatedProducts.length > 0 && (
+                          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="font-medium text-blue-900">
+                                Selected Related Products ({relatedProducts.length})
+                              </Label>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setRelatedProducts([]);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    related_products: []
+                                  }));
+                                  toast({
+                                    title: "Success",
+                                    description: "Cleared all related products",
+                                  });
+                                }}
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                Clear All
+                              </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {relatedProducts.map((product) => (
+                                <div key={product.id} className="flex items-center gap-2 bg-white border rounded-full px-3 py-1 text-sm">
+                                  <span>{product.name}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-4 w-4 p-0 hover:bg-red-100"
+                                    onClick={() => removeRelatedProduct(product.id)}
+                                  >
+                                    <X className="h-3 w-3 text-red-500" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1194,28 +1563,107 @@ export default function ProductEditPage() {
                 <CardContent className="space-y-6">
                   <div>
                     <Label className="text-base font-medium">Product Colors</Label>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Input
-                        type="color"
-                        value={newColor}
-                        onChange={(e) => setNewColor(e.target.value)}
-                        className="w-16 h-10"
-                      />
-                      <Button onClick={addColor} size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Color
-                      </Button>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {colors.map((color, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-gray-100 rounded-lg p-2">
-                          <div className="w-6 h-6 rounded border" style={{ backgroundColor: color }} />
-                          <span className="text-sm">{color}</span>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => removeColor(color)}>
-                            <X className="h-3 w-3" />
+
+                    {/* Color Selection Type */}
+                    <div className="mt-3 space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="predefined-colors"
+                            name="color-selection"
+                            checked={colorSelectionType === "predefined"}
+                            onChange={() => setColorSelectionType("predefined")}
+                          />
+                          <Label htmlFor="predefined-colors">Choose from available colors</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="custom-colors"
+                            name="color-selection"
+                            checked={colorSelectionType === "custom"}
+                            onChange={() => setColorSelectionType("custom")}
+                          />
+                          <Label htmlFor="custom-colors">Custom color</Label>
+                        </div>
+                      </div>
+
+                      {/* Predefined Colors Section */}
+                      {colorSelectionType === "predefined" && (
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium">Available Colors</Label>
+                          <div className="grid grid-cols-6 gap-3 max-h-48 overflow-y-auto border rounded-lg p-3">
+                            {availableColors.map((color, index) => (
+                              <div
+                                key={index}
+                                className={`flex flex-col items-center p-2 rounded-lg border cursor-pointer hover:bg-gray-50 ${colors.includes(color.code) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                                  }`}
+                                onClick={() => addPredefinedColor(color.code)}
+                              >
+                                <div
+                                  className="w-8 h-8 rounded-full border-2 border-gray-300 mb-1"
+                                  style={{ backgroundColor: color.code }}
+                                />
+                                <span className="text-xs text-center">{color.name.ar}</span>
+                                <span className="text-xs text-gray-500">{color.code}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {availableColors.length === 0 && (
+                            <div className="text-center py-4 text-gray-500">
+                              No colors available
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Custom Color Section */}
+                      {colorSelectionType === "custom" && (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={newColor}
+                            onChange={(e) => setNewColor(e.target.value)}
+                            className="w-16 h-10"
+                          />
+                          <Input
+                            type="text"
+                            value={newColor}
+                            onChange={(e) => setNewColor(e.target.value)}
+                            placeholder="#000000"
+                            className="w-24"
+                          />
+                          <Button onClick={addColor} size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Color
                           </Button>
                         </div>
-                      ))}
+                      )}
+                    </div>
+
+                    {/* Selected Colors Display */}
+                    <div className="mt-4">
+                      <Label className="text-sm font-medium">Selected Colors</Label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {colors.map((color, index) => {
+                          const colorName = availableColors.find(c => c.code === color)?.name.ar || color;
+                          return (
+                            <div key={index} className="flex items-center gap-2 bg-gray-100 rounded-lg p-2">
+                              <div className="w-6 h-6 rounded border" style={{ backgroundColor: color }} />
+                              <span className="text-sm">{colorName}</span>
+                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => removeColor(color)}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                        {colors.length === 0 && (
+                          <div className="text-center py-4 text-gray-500 w-full">
+                            No colors selected
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -1223,82 +1671,9 @@ export default function ProductEditPage() {
             </TabsContent>
 
             {/* Files Tab */}
-            <TabsContent value="files" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Product Files</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <Label className="text-base font-medium">Images</Label>
-                    <div className="mt-2 grid grid-cols-4 gap-4">
-                      {images.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={image.url || "/placeholder.svg"}
-                            alt={`Product ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg border"
-                          />
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 opacity-0 group-hover:opacity-100"
-                            onClick={() => removeImage(index)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      <ImageUpload value="" onChange={addImage} folder="products" className="h-38" />
-                    </div>
-                  </div>
+            {/* <TabsContent value="files" className="space-y-6">
 
-                  <Separator />
-
-                  <div>
-                    <Label className="text-base font-medium">Videos</Label>
-                    <div className="mt-2 space-y-3">
-                      {videos.map((video, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                          <Video className="h-5 w-5 text-gray-400" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{video.url}</p>
-                            <p className="text-xs text-gray-500">
-                              {video.type === "link" ? "External link" : "Uploaded file"}
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setVideos((prev) => prev.filter((_, i) => i !== index))}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Video URL"
-                          onKeyPress={(e) => {
-                            if (e.key === "Enter") {
-                              const url = (e.target as HTMLInputElement).value
-                              if (url) {
-                                setVideos((prev) => [...prev, { url, type: "link" }])
-                                  ; (e.target as HTMLInputElement).value = ""
-                              }
-                            }
-                          }}
-                        />
-                        <Button variant="outline">
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Video
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Shipping Tab */}
             <TabsContent value="shipping" className="space-y-6">
@@ -1306,83 +1681,196 @@ export default function ProductEditPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Truck className="h-5 w-5" />
-                    Shipping Settings
+                    Inventory & Shipping Settings
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-base font-medium">Requires Shipping</Label>
-                      <p className="text-sm text-gray-600">Does this product need to be shipped?</p>
+                  {/* Stock Management */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Stock Management</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="stock">Stock Quantity</Label>
+                        <Input
+                          id="stock"
+                          type="number"
+                          value={formData.stock || 0}
+                          onChange={(e) => handleInputChange("stock", Number.parseInt(e.target.value) || 0)}
+                          disabled={formData.stock_unlimited === true}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={formData.stock_unlimited === true}
+                          onCheckedChange={(checked) => handleInputChange("stock_unlimited", checked ? true : null)}
+                        />
+                        <Label>Unlimited Stock</Label>
+                      </div>
                     </div>
-                    <Switch
-                      checked={formData.requires_shipping}
-                      onCheckedChange={(checked) => handleInputChange("requires_shipping", checked)}
-                    />
+
+                    <div>
+                      <Label htmlFor="out-of-stock">When Out of Stock</Label>
+                      <select
+                        id="out-of-stock"
+                        value={formData.out_of_stock || "hide_from_storefront"}
+                        onChange={(e) => handleInputChange("out_of_stock", e.target.value)}
+                        className="w-full p-2 border rounded-md"
+                      >
+                        <option value="hide_from_storefront">Hide from storefront</option>
+                        <option value="show_on_storefront">Show on storefront</option>
+                        <option value="show_and_allow_pre_order">Show and allow pre-order</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="minimum-purchase">Minimum Purchase Quantity</Label>
+                        <Input
+                          id="minimum-purchase"
+                          type="number"
+                          value={formData.minimum_purchase || 1}
+                          onChange={(e) => handleInputChange("minimum_purchase", Number.parseInt(e.target.value) || 1)}
+                          min="1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="maximum-purchase">Maximum Purchase Quantity</Label>
+                        <Input
+                          id="maximum-purchase"
+                          type="number"
+                          value={formData.maximum_purchase || 5}
+                          onChange={(e) => handleInputChange("maximum_purchase", Number.parseInt(e.target.value) || 5)}
+                          min="1"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {formData.requires_shipping && (
-                    <>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <Label htmlFor="length">Length (cm)</Label>
-                          <Input
-                            id="length"
-                            type="number"
-                            value={formData.length || ""}
-                            onChange={(e) =>
-                              handleInputChange("length", Number.parseFloat(e.target.value) || undefined)
-                            }
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="width">Width (cm)</Label>
-                          <Input
-                            id="width"
-                            type="number"
-                            value={formData.width || ""}
-                            onChange={(e) => handleInputChange("width", Number.parseFloat(e.target.value) || undefined)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="height">Height (cm)</Label>
-                          <Input
-                            id="height"
-                            type="number"
-                            value={formData.height || ""}
-                            onChange={(e) =>
-                              handleInputChange("height", Number.parseFloat(e.target.value) || undefined)
-                            }
-                          />
-                        </div>
-                      </div>
+                  <Separator />
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="shipping-single">Shipping Cost (Single Item)</Label>
-                          <Input
-                            id="shipping-single"
-                            type="number"
-                            value={formData.shipping_rate_single || ""}
-                            onChange={(e) =>
-                              handleInputChange("shipping_rate_single", Number.parseFloat(e.target.value) || undefined)
-                            }
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="shipping-multi">Shipping Cost (Multiple Items)</Label>
-                          <Input
-                            id="shipping-multi"
-                            type="number"
-                            value={formData.shipping_rate_multi || ""}
-                            onChange={(e) =>
-                              handleInputChange("shipping_rate_multi", Number.parseFloat(e.target.value) || undefined)
-                            }
-                          />
-                        </div>
+                  {/* Shipping Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Shipping Settings</h3>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base font-medium">Requires Shipping</Label>
+                        <p className="text-sm text-gray-600">Does this product need to be shipped?</p>
                       </div>
-                    </>
-                  )}
+                      <Switch
+                        checked={formData.requires_shipping}
+                        onCheckedChange={(checked) => handleInputChange("requires_shipping", checked)}
+                      />
+                    </div>
+
+                    {formData.requires_shipping && (
+                      <>
+                        <div>
+                          <Label htmlFor="shipping-type">Shipping Type</Label>
+                          <select
+                            id="shipping-type"
+                            value={formData.shipping_type || "fixed_shipping"}
+                            onChange={(e) => handleShippingTypeChange(e.target.value)}
+                            className="w-full p-2 border rounded-md"
+                          >
+                            <option value="default">Default</option>
+                            <option value="fixed_shipping">Fixed Shipping</option>
+                            <option value="free_shipping">Free Shipping</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="weight">Weight (kg)</Label>
+                          <Input
+                            id="weight"
+                            type="number"
+                            step="0.01"
+                            value={formData.weight || ""}
+                            onChange={(e) =>
+                              handleInputChange("weight", Number.parseFloat(e.target.value) || null)
+                            }
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor="length">Length (cm)</Label>
+                            <Input
+                              id="length"
+                              type="number"
+                              step="0.01"
+                              value={formData.length || ""}
+                              onChange={(e) =>
+                                handleInputChange("length", Number.parseFloat(e.target.value) || null)
+                              }
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="width">Width (cm)</Label>
+                            <Input
+                              id="width"
+                              type="number"
+                              step="0.01"
+                              value={formData.width || ""}
+                              onChange={(e) => handleInputChange("width", Number.parseFloat(e.target.value) || null)}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="height">Height (cm)</Label>
+                            <Input
+                              id="height"
+                              type="number"
+                              step="0.01"
+                              value={formData.height || ""}
+                              onChange={(e) =>
+                                handleInputChange("height", Number.parseFloat(e.target.value) || null)
+                              }
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+
+                        {formData.shipping_type === "fixed_shipping" && (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="shipping-single">Shipping Cost (Single Item) *</Label>
+                              <Input
+                                id="shipping-single"
+                                type="number"
+                                step="0.01"
+                                value={formData.shipping_rate_single || ""}
+                                onChange={(e) =>
+                                  handleInputChange("shipping_rate_single", Number.parseFloat(e.target.value) || 0)
+                                }
+                                placeholder="0.00"
+                                className={formData.shipping_type === "fixed_shipping" && !formData.shipping_rate_single ? "border-red-300" : ""}
+                              />
+                              {formData.shipping_type === "fixed_shipping" && !formData.shipping_rate_single && (
+                                <p className="text-sm text-red-600 mt-1">Shipping rate is required for fixed shipping</p>
+                              )}
+                            </div>
+                            <div>
+                              <Label htmlFor="shipping-multi">Shipping Cost (Multiple Items)</Label>
+                              <Input
+                                id="shipping-multi"
+                                type="number"
+                                step="0.01"
+                                value={formData.shipping_rate_multi || ""}
+                                onChange={(e) =>
+                                  handleInputChange("shipping_rate_multi", Number.parseFloat(e.target.value) || null)
+                                }
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1623,7 +2111,7 @@ export default function ProductEditPage() {
           </Card>
 
           {/* Stock Control */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Stock Control</CardTitle>
             </CardHeader>
@@ -1681,7 +2169,7 @@ export default function ProductEditPage() {
                 Hide stock control
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Product Features */}
           <Card>

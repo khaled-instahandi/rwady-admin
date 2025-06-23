@@ -32,29 +32,29 @@ export interface Product {
     en: string
   }
 
-  sku: string
+  sku: string | null
   price: number
   sort_orders?: number
-  price_after_discount?: number
-  price_discount_start?: string
-  price_discount_end?: string
-  cost_price?: number
-  cost_price_after_discount?: number
-  cost_price_discount_start?: string
-  cost_price_discount_end?: string
+  price_after_discount?: number | null
+  price_discount_start?: string | null
+  price_discount_end?: string | null
+  cost_price?: number | null
+  cost_price_after_discount?: number | null
+  cost_price_discount_start?: string | null
+  cost_price_discount_end?: string | null
   availability: boolean
   stock: number
-  stock_unlimited: boolean
-  out_of_stock: "hide_from_storefront" | "show_as_sold_out"
+  stock_unlimited: boolean | null
+  out_of_stock: "hide_from_storefront" | "show_on_storefront" | "show_and_allow_pre_order"
   minimum_purchase: number
   maximum_purchase: number
   requires_shipping: boolean
-  weight?: number
-  length?: number
+  weight?: number | null
+  length?: number | null
   image_url?: string
-  width?: number
-  height?: number
-  shipping_type: "fixed_shipping" | "calculated_shipping"
+  width?: number | null
+  height?: number | null
+  shipping_type: "default" | "fixed_shipping" | "free_shipping"
   shipping_rate_single?: number
   shipping_rate_multi?: number
   is_recommended: boolean
@@ -63,7 +63,7 @@ export interface Product {
     en: string | null
   }
   ribbon_color?: string
-  related_category_id?: number
+  related_category_id?: number | null
   related_category_limit?: number
   position?: number
   orders?: number
@@ -79,6 +79,11 @@ export interface ProductColor {
   id: number
   product_id: number
   color: string
+  name: {
+    ar: string
+    en: string | null
+  }
+  code: string | null
   created_at: string
   updated_at: string
 }
@@ -379,6 +384,7 @@ class ApiService {
     return this.post("/admin/categories", data)
   }
 
+
   async updateCategory(id: number, data: any): Promise<ApiResponse<Category>> {
     return this.put(`/admin/categories/${id}`, data)
   }
@@ -543,6 +549,11 @@ class ApiService {
 
   async deleteBrand(id: number): Promise<ApiResponse<any>> {
     return this.delete(`/admin/brands/${id}`)
+  }
+
+  // get colors 
+  async getProductColors(): Promise<ApiResponse<ProductColor[]>> {
+    return this.get(`/general/colors`)
   }
 }
 

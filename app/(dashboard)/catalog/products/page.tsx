@@ -76,6 +76,8 @@ export default function ProductsPage() {
     stock_status: string
     sort_by: string
     sort_direction: "asc" | "desc"
+    requires_shipping?: boolean
+    shipping_type?: string
   }>({
     status: "any",
     category_id: "any",
@@ -149,6 +151,8 @@ export default function ProductsPage() {
     if (filters.brand_id && filters.brand_id !== "any") count++
     if (filters.price_min || filters.price_max) count++
     if (filters.stock_status && filters.stock_status !== "any") count++
+    if (filters.requires_shipping !== undefined) count++
+    if (filters.shipping_type && filters.shipping_type !== "any") count++
     setActiveFilters(count)
   }, [filters])
 
@@ -173,6 +177,15 @@ export default function ProductsPage() {
         if (filters.stock_status === "in_stock") filterParams.stock_status = "in_stock"
         if (filters.stock_status === "out_of_stock") filterParams.stock_status = "out_of_stock"
         if (filters.stock_status === "unlimited") filterParams.stock_unlimited = true
+        if (filters.stock_status === "preorder") filterParams.out_of_stock = "show_and_allow_pre_order"
+      }
+
+      if (filters.requires_shipping !== undefined) {
+        filterParams.requires_shipping = filters.requires_shipping
+      }
+
+      if (filters.shipping_type && filters.shipping_type !== "any") {
+        filterParams.shipping_type = filters.shipping_type
       }
 
       const response = await apiService.getProducts({
@@ -181,7 +194,7 @@ export default function ProductsPage() {
         search: debouncedSearch,
         sort_by: sortParams.sort_by,
         sort_direction: sortParams.sort_direction,
-        // filters: filterParams,
+        ...filterParams,
       })
 
       if (response.success) {
@@ -273,6 +286,7 @@ export default function ProductsPage() {
       stock_status: "any",
       sort_by: "NAME: A TO Z",
       sort_direction: "asc",
+      shipping_type: "any"
     })
     setCurrentPage(1)
   }
@@ -508,7 +522,9 @@ export default function ProductsPage() {
             )}
           </div>
         ) : (
-          products.map((product) => (
+          products.map((product) => {
+            console.log('Product ID for edit link:', product.id); // Debug log
+            return (
             <div key={product.id} className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50">
               <Checkbox
                 checked={selectedProducts.includes(product.id)}
@@ -552,7 +568,19 @@ export default function ProductsPage() {
                       {product.requires_shipping && (
                         <div className="flex items-center gap-2">
                           <Package className="h-3 w-3 text-gray-400" />
-                          <span className="text-sm text-gray-600">Requires shipping</span>
+                          <span className="text-sm text-gray-600">
+                            {product.shipping_type === "free_shipping"
+                              ? "Free shipping"
+                              : product.shipping_type === "fixed_shipping"
+                                ? `Fixed shipping (${product.shipping_rate_single?.toLocaleString()} IQD)`
+                                : "Default shipping"}
+                          </span>
+                        </div>
+                      )}
+                      {product.out_of_stock === "show_and_allow_pre_order" && product.stock <= 0 && !product.stock_unlimited && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-orange-500" />
+                          <span className="text-sm text-orange-600">Pre-order enabled</span>
                         </div>
                       )}
                     </div>
@@ -570,7 +598,16 @@ export default function ProductsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" forceMount>
                           <DropdownMenuItem asChild>
-                            <Link href={`/catalog/products/${product.id}`}>
+                            <Link 
+                              href={`/catalog/products/${product.id}`}
+                              onClick={(e) => {
+                                console.log('Navigating to:', `/catalog/products/${product.id}`);
+                                console.log('Product ID:', product.id);
+                                // Test manual navigation
+                                // e.preventDefault();
+                                // window.location.href = `/catalog/products/${product.id}`;
+                              }}
+                            >
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </Link>
@@ -600,7 +637,8 @@ export default function ProductsPage() {
                 </div>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -806,6 +844,54 @@ export default function ProductsPage() {
                   <SelectItem value="in_stock">In Stock</SelectItem>
                   <SelectItem value="out_of_stock">Out of Stock</SelectItem>
                   <SelectItem value="unlimited">Unlimited Stock</SelectItem>
+                  <SelectItem value="preorder">Pre-order Enabled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium col-span-1">Shipping</label>
+              <Select
+                value={filters.requires_shipping !== undefined ? (filters.requires_shipping ? "true" : "false") : "any"}
+                onValueChange={(value) => {
+                  if (value === "true") {
+                    setFilters(prev => ({ ...prev, requires_shipping: true }));
+                  } else if (value === "false") {
+                    setFilters(prev => ({ ...prev, requires_shipping: false }));
+                  } else {
+                    setFilters(prev => {
+                      const newFilters = { ...prev };
+                      delete newFilters.requires_shipping;
+                      return newFilters;
+                    });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Shipping requirement" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4}>
+                  <SelectItem value="any">Any shipping status</SelectItem>
+                  <SelectItem value="true">Requires shipping</SelectItem>
+                  <SelectItem value="false">No shipping required</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium col-span-1">Shipping Type</label>
+              <Select
+                value={filters.shipping_type || "any"}
+                onValueChange={(value) => handleFilterChange("shipping_type", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any shipping type" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4}>
+                  <SelectItem value="any">Any shipping type</SelectItem>
+                  <SelectItem value="default">Default shipping</SelectItem>
+                  <SelectItem value="fixed_shipping">Fixed shipping</SelectItem>
+                  <SelectItem value="free_shipping">Free shipping</SelectItem>
                 </SelectContent>
               </Select>
             </div>
