@@ -139,7 +139,7 @@ export function ImageUpload({ value, imageName, onChange, folder, className }: I
       {/* )} */}
 
       <div className="mt-2" style={{ display: "flex", justifyContent: "center" }}>
-        <Button
+        {/* <Button
           type="button"
           variant="outline"
           size="sm"
@@ -158,7 +158,7 @@ export function ImageUpload({ value, imageName, onChange, folder, className }: I
               {preview ? "Change image" : "Upload image"}
             </>
           )}
-        </Button>
+        </Button> */}
       </div>
 
       {imageName && (

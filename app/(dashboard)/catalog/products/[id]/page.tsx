@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { apiService } from "@/lib/api"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { SortableList } from "@/components/ui/sortable-list"
 import {
   ArrowLeft,
   Save,
@@ -34,6 +35,7 @@ import {
   Upload,
   Video,
   AlertTriangle,
+  GripVertical,
 } from "lucide-react"
 import {
   Dialog,
@@ -99,8 +101,9 @@ export default function ProductEditPage() {
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("general")
-  const [images, setImages] = useState<Array<{ url: string; name: string }>>([])
-  const [videos, setVideos] = useState<Array<{ url: string; type: "file" | "link" }>>([])
+  const [images, setImages] = useState<Array<{ id?: number; url: string; name: string; orders?: number }>>([])
+  const [videos, setVideos] = useState<Array<{ id?: number; url: string; type: "file" | "link"; orders?: number }>>([])
+  const [mediaReorderLoading, setMediaReorderLoading] = useState(false)
   const [colors, setColors] = useState<string[]>([])
   const [newColor, setNewColor] = useState("#000000")
   const [availableColors, setAvailableColors] = useState<Array<{ name: { ar: string; en: string }; code: string }>>([])
@@ -344,8 +347,8 @@ export default function ProductEditPage() {
         // Set images and videos from media array (API format with objects)
         if ((product as any).media && Array.isArray((product as any).media)) {
           const mediaArray = (product as any).media;
-          const productImages: Array<{ url: string; name: string }> = [];
-          const productVideos: Array<{ url: string; type: "file" | "link" }> = [];
+          const productImages: Array<{ id?: number; url: string; name: string; orders?: number }> = [];
+          const productVideos: Array<{ id?: number; url: string; type: "file" | "link"; orders?: number }> = [];
 
           console.log("Raw API response media:", mediaArray);
           console.log("Media array type:", typeof mediaArray);
@@ -362,15 +365,19 @@ export default function ProductEditPage() {
                 const imageUrl = item.url || (item.path ? (item.path.startsWith('http') ? item.path : `/${item.path}`) : '');
                 console.log(`Adding image with URL: ${imageUrl}`);
                 productImages.push({
+                  id: item.id,
                   url: imageUrl,
-                  name: item.path || item.url || `image-${index}`
+                  name: item.path || item.url || `image-${index}`,
+                  orders: item.orders || index
                 });
               } else if (item.type === 'video') {
                 const videoUrl = item.url || item.path || '';
                 console.log(`Adding video with URL: ${videoUrl}`);
                 productVideos.push({
+                  id: item.id,
                   url: videoUrl,
-                  type: item.source === 'link' ? 'link' : 'file'
+                  type: item.source === 'link' ? 'link' : 'file',
+                  orders: item.orders || index
                 });
               }
             }
@@ -384,17 +391,23 @@ export default function ProductEditPage() {
                 item.endsWith('.wmv') || item.endsWith('.flv') || item.endsWith('.webm')) {
                 productVideos.push({
                   url: item,
-                  type: item.startsWith('http') ? 'link' : 'file'
+                  type: item.startsWith('http') ? 'link' : 'file',
+                  orders: index
                 });
               } else {
                 // Assume it's an image
                 productImages.push({
                   url: item.startsWith('http') ? item : `/${item}`,
-                  name: item
+                  name: item,
+                  orders: index
                 });
               }
             }
           });
+
+          // Sort by orders
+          productImages.sort((a, b) => (a.orders || 0) - (b.orders || 0));
+          productVideos.sort((a, b) => (a.orders || 0) - (b.orders || 0));
 
           console.log("Final processed images:", productImages);
           console.log("Final processed videos:", productVideos);
@@ -683,7 +696,8 @@ export default function ProductEditPage() {
       const trimmedUrl = url.trim()
       // Basic URL validation
       if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://') || trimmedUrl.startsWith('www.')) {
-        setVideos((prev) => [...prev, { url: trimmedUrl, type: "link" }])
+        const newOrder = Math.max(...videos.map(video => video.orders || 0), 0) + 1;
+        setVideos((prev) => [...prev, { url: trimmedUrl, type: "link", orders: newOrder }])
         return true
       } else {
         toast({
@@ -698,12 +712,156 @@ export default function ProductEditPage() {
   }
 
   const addImage = (imageUrl: string, imageName: string) => {
-    setImages((prev) => [...prev, { url: imageUrl, name: imageName }])
+    const newOrder = Math.max(...images.map(img => img.orders || 0), 0) + 1;
+    setImages((prev) => [...prev, { url: imageUrl, name: imageName, orders: newOrder }])
   }
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
   }
+
+  // Reorder media items
+  const reorderMedia = async (mediaId: number, newOrder: number) => {
+    if (!productId) return;
+    console.log("Reordering media:", mediaId, "to new order:", newOrder);
+    console.log("Product ID:", productId);
+
+    // Check if we have authentication token
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    console.log("Auth token exists:", !!token);
+
+    try {
+      setMediaReorderLoading(true);
+
+      const result = await apiService.reorderMedia(productId, mediaId, newOrder);
+      console.log("Reorder result:", result);
+
+      if (result.success) {
+        // Don't show individual success messages, parent function will show summary
+        // toast({
+        //   title: "Success",
+        //   description: "Media order updated successfully",
+        // });
+
+        // Don't reload the entire product, just update the local state
+        // await loadProduct(); // Removed to improve performance
+      } else {
+        console.error("Reorder failed:", result.message);
+        throw new Error(result.message || 'Failed to reorder media');
+      }
+    } catch (error) {
+      console.error('Error reordering media:', error);
+      toast({
+        title: "Error",
+        description: `Failed to reorder media: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+      throw error; // Re-throw to stop the loop in handleImageReorder/handleVideoReorder
+    } finally {
+      setMediaReorderLoading(false);
+    }
+  };
+
+  // Handle image reorder
+  const handleImageReorder = async (reorderedImages: Array<{ id?: number; url: string; name: string; orders?: number }>) => {
+    console.log("Reordered images:", reorderedImages);
+
+    // Filter images that have IDs and need reordering
+    const imagesToUpdate = reorderedImages.filter(image => image.id !== undefined);
+    console.log("Images with IDs to update:", imagesToUpdate);
+
+    let updateCount = 0;
+    let errorCount = 0;
+
+    // Update orders for images with IDs (existing media) sequentially
+    for (let index = 0; index < reorderedImages.length; index++) {
+      const image = reorderedImages[index];
+      const newOrder = index + 1;
+
+      if (image.id) {
+        console.log(`Processing image ${image.id}: current order ${image.orders}, new order ${newOrder}`);
+
+        // Always update if the image has an ID, regardless of current order
+        // This ensures the backend gets the correct new order
+        try {
+          console.log(`Updating image ${image.id} to position ${newOrder}`);
+          await reorderMedia(image.id, newOrder);
+          updateCount++;
+        } catch (error) {
+          console.error(`Failed to reorder image ${image.id}:`, error);
+          errorCount++;
+          break; // Stop if any update fails
+        }
+      } else {
+        console.log(`Image at index ${index} has no ID (new image):`, image);
+      }
+    }
+
+    // Update local state after successful API calls
+    const updatedImages = reorderedImages.map((image, index) => ({
+      ...image,
+      orders: index + 1
+    }));
+    setImages(updatedImages);
+
+    // Show summary message
+    if (updateCount > 0 && errorCount === 0) {
+      toast({
+        title: "Success",
+        description: `Updated order for ${updateCount} image(s)`,
+      });
+    }
+  };
+
+  // Handle video reorder
+  const handleVideoReorder = async (reorderedVideos: Array<{ id?: number; url: string; type: "file" | "link"; orders?: number }>) => {
+    console.log("Reordered videos:", reorderedVideos);
+
+    // Filter videos that have IDs and need reordering
+    const videosToUpdate = reorderedVideos.filter(video => video.id !== undefined);
+    console.log("Videos with IDs to update:", videosToUpdate);
+
+    let updateCount = 0;
+    let errorCount = 0;
+
+    // Update orders for videos with IDs (existing media) sequentially
+    for (let index = 0; index < reorderedVideos.length; index++) {
+      const video = reorderedVideos[index];
+      const newOrder = index + 1;
+
+      if (video.id) {
+        console.log(`Processing video ${video.id}: current order ${video.orders}, new order ${newOrder}`);
+
+        // Always update if the video has an ID, regardless of current order
+        try {
+          console.log(`Updating video ${video.id} to position ${newOrder}`);
+          await reorderMedia(video.id, newOrder);
+          updateCount++;
+        } catch (error) {
+          console.error(`Failed to reorder video ${video.id}:`, error);
+          errorCount++;
+          break; // Stop if any update fails
+        }
+      } else {
+        console.log(`Video at index ${index} has no ID (new video):`, video);
+      }
+    }
+
+    // Update local state after successful API calls
+    const updatedVideos = reorderedVideos.map((video, index) => ({
+      ...video,
+      orders: index + 1
+    }));
+    setVideos(updatedVideos);
+
+    // Show summary message
+    if (updateCount > 0 && errorCount === 0) {
+      toast({
+        title: "Success",
+        description: `Updated order for ${updateCount} video(s)`,
+      });
+    }
+  };
 
   const addColor = () => {
     let colorToAdd = ""
@@ -1017,33 +1175,87 @@ export default function ProductEditPage() {
                   <div>
                     <Label className="text-base font-medium">Images</Label>
                     <p className="text-sm text-gray-600 mb-2">Current images: {images.length}</p>
-                    <div className="mt-2 grid grid-cols-4 gap-4">
-                      {images.map((image, index) => {
-                        console.log(`Rendering image ${index}:`, image);
-                        return (
-                          <div key={index} className="relative group">
-                            <img
-                              src={image.url || "/placeholder.svg"}
-                              alt={`Product ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border"
-                              onError={(e) => {
-                                console.error(`Failed to load image ${index}:`, image.url);
-                                (e.target as HTMLImageElement).src = "/placeholder.svg";
-                              }}
-                              onLoad={() => console.log(`Successfully loaded image ${index}:`, image.url)}
-                            />
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 opacity-0 group-hover:opacity-100"
-                              onClick={() => removeImage(index)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                    <div className="mt-2 space-y-4">
+                      {/* Sortable Images List */}
+                      {images.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-700">Drag images to reorder:</p>
+                            {mediaReorderLoading && (
+                              <div className="flex items-center gap-2 text-sm text-blue-600">
+                                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                Updating order...
+                              </div>
+                            )}
                           </div>
-                        );
-                      })}
-                      <ImageUpload value="" onChange={addImage} folder="products" className="h-32" />
+                          <SortableList
+                            items={images.map((image, index) => ({
+                              id: image.id?.toString() || `temp-${index}`,
+                              url: image.url,
+                              name: image.name,
+                              orders: image.orders,
+                              originalId: image.id
+                            }))}
+                            onReorder={(reorderedItems) => {
+                              const updatedImages = reorderedItems.map((item, index) => ({
+                                id: item.id.startsWith('temp-') ? undefined : item.originalId,
+                                url: item.url,
+                                name: item.name,
+                                orders: index + 1
+                              }));
+                              handleImageReorder(updatedImages);
+                            }}
+                            renderItem={(image, index) => (
+                              <div className="flex items-center gap-4 p-3 bg-white border rounded-lg">
+                                <img
+                                  src={image.url || "/placeholder.svg"}
+                                  alt={`Product ${index + 1}`}
+                                  className="w-16 h-16 object-cover rounded border"
+                                  onError={(e) => {
+                                    console.error(`Failed to load image ${index}:`, image.url);
+                                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                                  }}
+                                  onLoad={() => console.log(`Successfully loaded image ${index}:`, image.url)}
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{image.name}</p>
+                                  <p className="text-xs text-gray-500">Order: {image.orders || index + 1}</p>
+                                  {image.id && <p className="text-xs text-gray-400">ID: {image.id}</p>}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    const imageIndex = images.findIndex(img =>
+                                      img.id ? img.id === image.id : img.url === image.url
+                                    );
+                                    if (imageIndex !== -1) {
+                                      removeImage(imageIndex);
+                                    }
+                                  }}
+                                  disabled={mediaReorderLoading}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                            className="space-y-2"
+                          />
+                        </div>
+                      )}
+
+                      {/* Add New Image */}
+                      {/* <div className="border-2 border-dashed border-gray-300 rounded-lg p-4"> */}
+                      <ImageUpload
+                        value=""
+                        onChange={addImage}
+                        folder="products"
+                        className="h-32 w-full"
+                      />
+                      {/* <p className="text-sm text-gray-500 mt-2 text-center">
+                          Upload new images or drag existing ones to reorder
+                        </p> */}
+                      {/* </div> */}
                     </div>
                   </div>
 
@@ -1053,27 +1265,72 @@ export default function ProductEditPage() {
                     <Label className="text-base font-medium">Videos</Label>
                     <p className="text-sm text-gray-600 mb-2">Current videos: {videos.length}</p>
                     <div className="mt-2 space-y-3">
-                      {videos.map((video, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
-                          <Video className="h-5 w-5 text-gray-400" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium break-all">{video.url}</p>
-                            <p className="text-xs text-gray-500">
-                              {video.url.includes('youtube.com') || video.url.includes('youtu.be') ? 'YouTube Video' :
-                                video.url.includes('vimeo.com') ? 'Vimeo Video' :
-                                  video.type === "link" ? "External link" : "Uploaded file"}
-                            </p>
+                      {/* Sortable Videos List */}
+                      {videos.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-700">Drag videos to reorder:</p>
+                            {mediaReorderLoading && (
+                              <div className="flex items-center gap-2 text-sm text-blue-600">
+                                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                Updating order...
+                              </div>
+                            )}
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setVideos((prev) => prev.filter((_, i) => i !== index))}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <SortableList
+                            items={videos.map((video, index) => ({
+                              id: video.id?.toString() || `temp-video-${index}`,
+                              url: video.url,
+                              type: video.type,
+                              orders: video.orders,
+                              originalId: video.id
+                            }))}
+                            onReorder={(reorderedItems) => {
+                              const updatedVideos = reorderedItems.map((item, index) => ({
+                                id: item.id.startsWith('temp-video-') ? undefined : item.originalId,
+                                url: item.url,
+                                type: item.type,
+                                orders: index + 1
+                              }));
+                              handleVideoReorder(updatedVideos);
+                            }}
+                            renderItem={(video, index) => (
+                              <div className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
+                                <Video className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium break-all">{video.url}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {video.url.includes('youtube.com') || video.url.includes('youtu.be') ? 'YouTube Video' :
+                                      video.url.includes('vimeo.com') ? 'Vimeo Video' :
+                                        video.type === "link" ? "External link" : "Uploaded file"}
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    Order: {video.orders || index + 1}
+                                    {video.id && ` • ID: ${video.id}`}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    const videoIndex = videos.findIndex(v =>
+                                      v.id ? v.id === video.id : v.url === video.url
+                                    );
+                                    if (videoIndex !== -1) {
+                                      setVideos((prev) => prev.filter((_, i) => i !== videoIndex));
+                                    }
+                                  }}
+                                  className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                  disabled={mediaReorderLoading}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                            className="space-y-2"
+                          />
                         </div>
-                      ))}
+                      )}
 
                       {/* Add Video URL Input */}
                       <div className="flex gap-2">
@@ -1110,6 +1367,7 @@ export default function ProductEditPage() {
                         • Paste YouTube, Vimeo, or any video URL<br />
                         • Press Enter or click "Add Video" button<br />
                         • You can add multiple videos<br />
+                        • Drag videos to reorder them<br />
                         • Example: https://www.youtube.com/watch?v=QHk8N1Xaj8I
                       </div>
                     </div>

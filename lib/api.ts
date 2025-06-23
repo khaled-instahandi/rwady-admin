@@ -555,6 +555,50 @@ class ApiService {
   async getProductColors(): Promise<ApiResponse<ProductColor[]>> {
     return this.get(`/general/colors`)
   }
+
+  // Reorder media
+  async reorderMedia(productId: number, mediaId: number, orders: number): Promise<ApiResponse<any>> {
+    try {
+      const url = `${API_BASE_URL}/admin/products/${productId}/media/${mediaId}/reorder`;
+      console.log("Reorder API URL:", url);
+      console.log("Reorder payload:", { orders });
+      console.log("Headers:", this.getAuthHeaders());
+
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ orders }),
+      })
+
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Network error occurred" }))
+        console.error("API Error:", errorData);
+        return {
+          success: false,
+          message: errorData.message || `HTTP error! status: ${response.status}`,
+          data: null,
+        }
+      }
+
+      const data = await response.json()
+      console.log("API Response data:", data);
+      return {
+        success: true,
+        message: data.message || "Media reordered successfully",
+        data: data.data || data,
+      }
+    } catch (error) {
+      console.error("Error reordering media:", error)
+      return {
+        success: false,
+        message: "Failed to reorder media. Please check your connection and try again.",
+        data: null,
+      }
+    }
+  }
 }
 
 export const apiService = new ApiService()

@@ -8,8 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { apiService, type Product } from "@/lib/api"
-import { ArrowLeft, ChevronDown, Package, DollarSign, ImageIcon, Save, Film, Calendar, 
-        Star, Tag, ShoppingCart, Truck, Scale, Box, Ruler, Palette } from "lucide-react"
+import {
+  ArrowLeft, ChevronDown, Package, DollarSign, ImageIcon, Save, Film, Calendar,
+  Star, Tag, ShoppingCart, Truck, Scale, Box, Ruler, Palette
+} from "lucide-react"
 
 export default function BulkProductEditor() {
   const router = useRouter()
@@ -23,7 +25,7 @@ export default function BulkProductEditor() {
     inventory: false,
     shipping: false,
   })
-  
+
   // Add state to track edited products
   const [editedProducts, setEditedProducts] = useState<Record<number, Partial<Product>>>({})
   const [isSaving, setIsSaving] = useState(false)
@@ -94,7 +96,7 @@ export default function BulkProductEditor() {
       setLoading(false)
     }
   }
-  
+
   // Handle field change for a product
   const handleProductChange = (productId: number, field: keyof Product, value: any) => {
     setEditedProducts((prev) => ({
@@ -105,7 +107,7 @@ export default function BulkProductEditor() {
       },
     }))
   }
-  
+
   // Save changes to the backend
   const saveChanges = async () => {
     if (Object.keys(editedProducts).length === 0) {
@@ -115,31 +117,31 @@ export default function BulkProductEditor() {
       })
       return
     }
-    
+
     setIsSaving(true)
-    
+
     try {
       // Process each edited product individually
       const updatePromises = Object.entries(editedProducts).map(async ([productIdStr, changes]) => {
         const productId = parseInt(productIdStr)
         return await apiService.updateProduct(productId, changes)
       })
-      
+
       // Wait for all updates to complete
       const results = await Promise.all(updatePromises)
-      
+
       // Check if all updates were successful
       const allSuccessful = results.every(result => result.success)
-      
+
       if (allSuccessful) {
         toast({
           title: "Success",
           description: "Products updated successfully",
         })
-        
+
         // Refresh products list
         fetchProducts()
-        
+
         // Clear edit tracking
         setEditedProducts({})
       } else {
@@ -175,7 +177,7 @@ export default function BulkProductEditor() {
       [column]: !prev[column],
     }))
   }
-  
+
   // Count active columns
   const activeColumnsCount = Object.values(columns).filter(Boolean).length
 
@@ -226,8 +228,8 @@ export default function BulkProductEditor() {
               variations at once. Add or delete the properties as you wish by enabling or disabling them in the Columns
               filter. For convenience, you can use your keyboard (Tab, Enter, arrow keys) to navigate and edit the
               table. To edit more properties of a product, go to{" "}
-              <span 
-                className="text-blue-600 cursor-pointer hover:underline" 
+              <span
+                className="text-blue-600 cursor-pointer hover:underline"
                 onClick={() => router.push("/catalog/products")}
               >
                 Products
@@ -275,98 +277,98 @@ export default function BulkProductEditor() {
               </button>
               {expandedSections.general && (
                 <div className="px-4 pb-4 space-y-2">
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("productGallery")}
                   >
                     <span className={`text-sm ${columns.productGallery ? "" : "text-gray-500"}`}>Product gallery</span>
                     <Checkbox checked={columns.productGallery} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("name")}
                   >
                     <span className={`text-sm ${columns.name ? "" : "text-gray-500"}`}>Name</span>
                     <Checkbox checked={columns.name} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("sku")}
                   >
                     <span className={`text-sm ${columns.sku ? "" : "text-gray-500"}`}>SKU</span>
                     <Checkbox checked={columns.sku} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("availability")}
                   >
                     <span className={`text-sm ${columns.availability ? "" : "text-gray-500"}`}>Availability</span>
                     <Checkbox checked={columns.availability} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("description")}
                   >
                     <span className={`text-sm ${columns.description ? "" : "text-gray-500"}`}>Description</span>
                     <Checkbox checked={columns.description} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("categories")}
                   >
                     <span className={`text-sm ${columns.categories ? "" : "text-gray-500"}`}>Categories</span>
                     <Checkbox checked={columns.categories} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("productSubtitle")}
                   >
                     <span className={`text-sm ${columns.productSubtitle ? "" : "text-gray-500"}`}>Product subtitle</span>
                     <Checkbox checked={columns.productSubtitle} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("ribbon")}
                   >
                     <span className={`text-sm ${columns.ribbon ? "" : "text-gray-500"}`}>Ribbon</span>
                     <Checkbox checked={columns.ribbon} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("featuredOnHomepage")}
                   >
                     <span className={`text-sm ${columns.featuredOnHomepage ? "" : "text-gray-500"}`}>Featured on homepage</span>
                     <Checkbox checked={columns.featuredOnHomepage} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("isRecommended")}
                   >
                     <span className={`text-sm ${columns.isRecommended ? "" : "text-gray-500"}`}>Recommended</span>
                     <Checkbox checked={columns.isRecommended} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("ribbon")}
                   >
                     <span className={`text-sm ${columns.ribbon ? "" : "text-gray-500"}`}>Ribbon text</span>
                     <Checkbox checked={columns.ribbon} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("ribbonColor")}
                   >
                     <span className={`text-sm ${columns.ribbonColor ? "" : "text-gray-500"}`}>Ribbon color</span>
                     <Checkbox checked={columns.ribbonColor} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("customUrlSlug")}
                   >
                     <span className={`text-sm ${columns.customUrlSlug ? "" : "text-gray-500"}`}>Custom URL slug</span>
                     <Checkbox checked={columns.customUrlSlug} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("colors")}
                   >
@@ -390,49 +392,49 @@ export default function BulkProductEditor() {
               </button>
               {expandedSections.pricing && (
                 <div className="px-4 pb-4 space-y-2">
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("price")}
                   >
                     <span className={`text-sm ${columns.price ? "" : "text-gray-500"}`}>Price</span>
                     <Checkbox checked={columns.price} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("compareToPrice")}
                   >
                     <span className={`text-sm ${columns.compareToPrice ? "" : "text-gray-500"}`}>Discounted price</span>
                     <Checkbox checked={columns.compareToPrice} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("priceDiscountStart")}
                   >
                     <span className={`text-sm ${columns.priceDiscountStart ? "" : "text-gray-500"}`}>Discount start date</span>
                     <Checkbox checked={columns.priceDiscountStart} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("priceDiscountEnd")}
                   >
                     <span className={`text-sm ${columns.priceDiscountEnd ? "" : "text-gray-500"}`}>Discount end date</span>
                     <Checkbox checked={columns.priceDiscountEnd} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("costPrice")}
                   >
                     <span className={`text-sm ${columns.costPrice ? "" : "text-gray-500"}`}>Cost price</span>
                     <Checkbox checked={columns.costPrice} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("costPriceAfterDiscount")}
                   >
                     <span className={`text-sm ${columns.costPriceAfterDiscount ? "" : "text-gray-500"}`}>Cost price after discount</span>
                     <Checkbox checked={columns.costPriceAfterDiscount} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("set")}
                   >
@@ -456,42 +458,42 @@ export default function BulkProductEditor() {
               </button>
               {expandedSections.inventory && (
                 <div className="px-4 pb-4 space-y-2">
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("stock")}
                   >
                     <span className={`text-sm ${columns.stock ? "" : "text-gray-500"}`}>Stock</span>
                     <Checkbox checked={columns.stock} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("stockUnlimited")}
                   >
                     <span className={`text-sm ${columns.stockUnlimited ? "" : "text-gray-500"}`}>Stock unlimited</span>
                     <Checkbox checked={columns.stockUnlimited} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("outOfStockBehavior")}
                   >
                     <span className={`text-sm ${columns.outOfStockBehavior ? "" : "text-gray-500"}`}>Out of stock behavior</span>
                     <Checkbox checked={columns.outOfStockBehavior} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("lowStockNotification")}
                   >
                     <span className={`text-sm ${columns.lowStockNotification ? "" : "text-gray-500"}`}>Low stock notification</span>
                     <Checkbox checked={columns.lowStockNotification} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("minimumPurchaseQuantity")}
                   >
                     <span className={`text-sm ${columns.minimumPurchaseQuantity ? "" : "text-gray-500"}`}>Minimum purchase quantity</span>
                     <Checkbox checked={columns.minimumPurchaseQuantity} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("maximumPurchaseQuantity")}
                   >
@@ -515,42 +517,42 @@ export default function BulkProductEditor() {
               </button>
               {expandedSections.shipping && (
                 <div className="px-4 pb-4 space-y-2">
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("requiresShippingOrPickup")}
                   >
                     <span className={`text-sm ${columns.requiresShippingOrPickup ? "" : "text-gray-500"}`}>Requires shipping or pickup</span>
                     <Checkbox checked={columns.requiresShippingOrPickup} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("weight")}
                   >
                     <span className={`text-sm ${columns.weight ? "" : "text-gray-500"}`}>Weight</span>
                     <Checkbox checked={columns.weight} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("dimensions")}
                   >
                     <span className={`text-sm ${columns.dimensions ? "" : "text-gray-500"}`}>Dimensions (L×W×H)</span>
                     <Checkbox checked={columns.dimensions} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("shippingType")}
                   >
                     <span className={`text-sm ${columns.shippingType ? "" : "text-gray-500"}`}>Shipping type</span>
                     <Checkbox checked={columns.shippingType} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("shippingRateSingle")}
                   >
                     <span className={`text-sm ${columns.shippingRateSingle ? "" : "text-gray-500"}`}>Shipping rate (single)</span>
                     <Checkbox checked={columns.shippingRateSingle} />
                   </div>
-                  <div 
+                  <div
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleColumn("shippingRateMulti")}
                   >
@@ -561,12 +563,12 @@ export default function BulkProductEditor() {
               )}
             </div>
           </div>
-          
+
           {/* Save Changes Button */}
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             variant="default"
-            onClick={saveChanges} 
+            onClick={saveChanges}
             disabled={isSaving || Object.keys(editedProducts).length === 0}
           >
             {isSaving ? (
@@ -797,7 +799,7 @@ export default function BulkProductEditor() {
                           />
                         </div>
                       </td>
-                      
+
                       {/* Product Gallery/Image */}
                       {columns.productGallery && (
                         <td className="p-3">
@@ -828,7 +830,7 @@ export default function BulkProductEditor() {
                           </div>
                         </td>
                       )}
-                      
+
                       {/* Name */}
                       {columns.name && (
                         <td className="p-3">
@@ -838,7 +840,7 @@ export default function BulkProductEditor() {
                                 ? editedProducts[product.id].name?.en
                                 : product.name.en
                             }
-                            onChange={(e) => 
+                            onChange={(e) =>
                               handleProductChange(product.id, "name", {
                                 ar: product.name.ar,
                                 en: e.target.value
@@ -848,38 +850,38 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* SKU */}
                       {columns.sku && (
                         <td className="p-3">
-                          <Input 
+                          <Input
                             value={
                               editedProducts[product.id]?.sku !== undefined
                                 ? editedProducts[product.id].sku
                                 : product.sku
                             }
                             onChange={(e) => handleProductChange(product.id, "sku", e.target.value)}
-                            className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:border-b focus-visible:border-blue-600" 
+                            className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:border-b focus-visible:border-blue-600"
                           />
                         </td>
                       )}
-                      
+
                       {/* Availability */}
                       {columns.availability && (
                         <td className="p-3">
-                          <Checkbox 
+                          <Checkbox
                             checked={
                               editedProducts[product.id]?.availability !== undefined
                                 ? editedProducts[product.id].availability
                                 : product.availability
                             }
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleProductChange(product.id, "availability", Boolean(checked))
                             }
                           />
                         </td>
                       )}
-                      
+
                       {/* Description */}
                       {columns.description && (
                         <td className="p-3">
@@ -889,7 +891,7 @@ export default function BulkProductEditor() {
                                 ? editedProducts[product.id].description?.en
                                 : product.description.en.substring(0, 30) + (product.description.en.length > 30 ? '...' : '')
                             }
-                            onChange={(e) => 
+                            onChange={(e) =>
                               handleProductChange(product.id, "description", {
                                 ar: product.description.ar,
                                 en: e.target.value
@@ -899,7 +901,7 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Categories */}
                       {columns.categories && (
                         <td className="p-3">
@@ -916,7 +918,7 @@ export default function BulkProductEditor() {
                           </div>
                         </td>
                       )}
-                      
+
                       {/* Product Subtitle */}
                       {columns.productSubtitle && (
                         <td className="p-3">
@@ -926,23 +928,23 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Is Recommended */}
                       {columns.isRecommended && (
                         <td className="p-3">
-                          <Checkbox 
+                          <Checkbox
                             checked={
                               editedProducts[product.id]?.is_recommended !== undefined
                                 ? editedProducts[product.id].is_recommended
                                 : product.is_recommended
                             }
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleProductChange(product.id, "is_recommended", Boolean(checked))
                             }
                           />
                         </td>
                       )}
-                      
+
                       {/* Ribbon */}
                       {columns.ribbon && (
                         <td className="p-3">
@@ -952,7 +954,7 @@ export default function BulkProductEditor() {
                                 ? String(editedProducts[product.id].ribbon_text?.en || "")
                                 : String(product.ribbon_text?.en || "")
                             }
-                            onChange={(e) => 
+                            onChange={(e) =>
                               handleProductChange(product.id, "ribbon_text", {
                                 ar: product.ribbon_text?.ar || "",
                                 en: e.target.value
@@ -963,21 +965,21 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Ribbon Color */}
                       {columns.ribbonColor && (
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <Input 
-                              type="color"                            value={
-                              editedProducts[product.id]?.ribbon_color !== undefined
-                                ? editedProducts[product.id].ribbon_color || "#ffffff"
-                                : product.ribbon_color || "#ffffff"
-                            }
+                            <Input
+                              type="color" value={
+                                editedProducts[product.id]?.ribbon_color !== undefined
+                                  ? editedProducts[product.id].ribbon_color || "#ffffff"
+                                  : product.ribbon_color || "#ffffff"
+                              }
                               onChange={(e) => handleProductChange(product.id, "ribbon_color", e.target.value)}
                               className="w-8 h-8 p-0 border-0"
                             />
-                            <Input 
+                            <Input
                               value={
                                 editedProducts[product.id]?.ribbon_color !== undefined
                                   ? editedProducts[product.id].ribbon_color
@@ -990,7 +992,7 @@ export default function BulkProductEditor() {
                           </div>
                         </td>
                       )}
-                      
+
                       {/* Price */}
                       {columns.price && (
                         <td className="p-3">
@@ -1008,7 +1010,7 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Compare To Price / Price After Discount */}
                       {columns.compareToPrice && (
                         <td className="p-3">
@@ -1027,7 +1029,7 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Price Discount Start */}
                       {columns.priceDiscountStart && (
                         <td className="p-3">
@@ -1043,7 +1045,7 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Price Discount End */}
                       {columns.priceDiscountEnd && (
                         <td className="p-3">
@@ -1059,7 +1061,7 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Cost Price */}
                       {columns.costPrice && (
                         <td className="p-3">
@@ -1078,7 +1080,7 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Stock */}
                       {columns.stock && (
                         <td className="p-3">
@@ -1094,27 +1096,27 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Stock Unlimited */}
                       {columns.stockUnlimited && (
                         <td className="p-3">
-                          <Checkbox 
+                          <Checkbox
                             checked={
                               editedProducts[product.id]?.stock_unlimited !== undefined
                                 ? editedProducts[product.id].stock_unlimited
                                 : product.stock_unlimited
                             }
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleProductChange(product.id, "stock_unlimited", Boolean(checked))
                             }
                           />
                         </td>
                       )}
-                      
+
                       {/* Out of Stock Behavior */}
                       {columns.outOfStockBehavior && (
                         <td className="p-3">
-                          <Select 
+                          <Select
                             value={
                               editedProducts[product.id]?.out_of_stock !== undefined
                                 ? editedProducts[product.id].out_of_stock
@@ -1134,7 +1136,7 @@ export default function BulkProductEditor() {
                           </Select>
                         </td>
                       )}
-                      
+
                       {/* Minimum Purchase */}
                       {columns.minimumPurchaseQuantity && (
                         <td className="p-3">
@@ -1150,7 +1152,7 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Maximum Purchase */}
                       {columns.maximumPurchaseQuantity && (
                         <td className="p-3">
@@ -1166,31 +1168,31 @@ export default function BulkProductEditor() {
                           />
                         </td>
                       )}
-                      
+
                       {/* Requires Shipping */}
                       {columns.requiresShippingOrPickup && (
                         <td className="p-3">
-                          <Checkbox 
+                          <Checkbox
                             checked={
                               editedProducts[product.id]?.requires_shipping !== undefined
                                 ? editedProducts[product.id].requires_shipping
                                 : product.requires_shipping
                             }
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleProductChange(product.id, "requires_shipping", Boolean(checked))
                             }
                           />
                         </td>
                       )}
-                      
+
                       {/* Colors */}
                       {columns.colors && (
                         <td className="p-3">
                           <div className="flex gap-1 flex-wrap">
                             {product.colors && product.colors.length > 0 ? (
                               product.colors.map(color => (
-                                <div 
-                                  key={color.id} 
+                                <div
+                                  key={color.id}
                                   className="w-6 h-6 rounded-full border"
                                   style={{ backgroundColor: color.color }}
                                   title={color.color}
