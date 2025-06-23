@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { apiService, type Product } from "@/lib/api"
 import { ArrowLeft, ChevronDown, Package, DollarSign, ImageIcon, Save, Film, Calendar, 
         Star, Tag, ShoppingCart, Truck, Scale, Box, Ruler, Palette } from "lucide-react"

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ImageUpload } from "@/components/ui/image-upload"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { apiService, type Brand } from "@/lib/api"
 import { Plus, Edit, Trash2, Package, Eye, EyeOff } from "lucide-react"
 
