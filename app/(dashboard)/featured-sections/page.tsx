@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   Plus,
   Search,
@@ -24,9 +25,10 @@ import {
   Loader2,
   Save,
   ArrowUpDown,
+  Settings,
+  X,
 } from "lucide-react"
 import { apiService, type FeaturedSection } from "@/lib/api"
-import { motion, AnimatePresence } from "framer-motion"
 import { useToast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 
@@ -52,8 +54,8 @@ export default function FeaturedSectionsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(12)
   const [sortBy, setSortBy] = useState<string>("created_at")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingSection, setEditingSection] = useState<FeaturedSection | null>(null)
+  const [selectedSection, setSelectedSection] = useState<FeaturedSection | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
 
@@ -99,44 +101,16 @@ export default function FeaturedSectionsPage() {
     loadSections()
   }, [currentPage, itemsPerPage, searchTerm, filterStatus, sortBy, sortDirection])
 
-  const handleCreateSection = async () => {
-    setSaving(true)
-    try {
-      // Prepare data for API - use image_name instead of image URL
-      const dataToSend = {
-        ...formData,
-        image: formData.image_name, // Send image_name to API
-      }
-
-      const response = await apiService.createFeaturedSection(dataToSend)
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Featured section created successfully",
-        })
-        setShowCreateModal(false)
-        resetForm()
-        loadSections()
-      } else {
-        toast({
-          title: "Error",
-          description: response.message || "Failed to create featured section",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
+  const handleSave = async () => {
+    // Check for required fields
+    if (!formData.name.ar.trim() && !formData.name.en.trim()) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "Section name is required in at least one language",
         variant: "destructive",
       })
-    } finally {
-      setSaving(false)
+      return
     }
-  }
-
-  const handleUpdateSection = async () => {
-    if (!editingSection) return
 
     setSaving(true)
     try {
@@ -146,19 +120,23 @@ export default function FeaturedSectionsPage() {
         image: formData.image_name, // Send image_name to API
       }
 
-      const response = await apiService.updateFeaturedSection(editingSection.id, dataToSend)
+      const response = selectedSection
+        ? await apiService.updateFeaturedSection(selectedSection.id, dataToSend)
+        : await apiService.createFeaturedSection(dataToSend)
+
       if (response.success) {
         toast({
           title: "Success",
-          description: "Featured section updated successfully",
+          description: `Featured section ${selectedSection ? "updated" : "created"} successfully`,
         })
-        setEditingSection(null)
+        setSelectedSection(null)
+        setIsEditing(false)
         resetForm()
         loadSections()
       } else {
         toast({
           title: "Error",
-          description: response.message || "Failed to update featured section",
+          description: response.message || `Failed to ${selectedSection ? "update" : "create"} featured section`,
           variant: "destructive",
         })
       }
@@ -242,8 +220,9 @@ export default function FeaturedSectionsPage() {
     })
   }
 
-  const openEditModal = (section: FeaturedSection) => {
-    setEditingSection(section)
+  const handleEdit = (section: FeaturedSection) => {
+    setSelectedSection(section)
+    setIsEditing(true)
     setFormData({
       name: {
         ar: section.name.ar || "",
@@ -258,6 +237,12 @@ export default function FeaturedSectionsPage() {
     })
   }
 
+  const handleNew = () => {
+    resetForm()
+    setSelectedSection(null)
+    setIsEditing(true)
+  }
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "No date set"
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -268,11 +253,11 @@ export default function FeaturedSectionsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-2">
       <Toaster />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
             <Star className="w-8 h-8 mr-3 text-yellow-600" />
@@ -281,10 +266,7 @@ export default function FeaturedSectionsPage() {
           <p className="text-gray-600 mt-1">Create and manage featured content sections for your website</p>
         </div>
         <Button
-          onClick={() => {
-            resetForm()
-            setShowCreateModal(true)
-          }}
+          onClick={handleNew}
           className="bg-yellow-600 hover:bg-yellow-700"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -292,327 +274,285 @@ export default function FeaturedSectionsPage() {
         </Button>
       </div>
 
-      {/* Filters and Search */}
-      <Card className="border-gray-200 shadow-sm">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search featured sections..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="12">12 per page</SelectItem>
-                <SelectItem value="24">24 per page</SelectItem>
-                <SelectItem value="48">48 per page</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={loadSections} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-                }}
-              >
-                <ArrowUpDown className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 ">
+        {/* Left Panel: Sections List */}
+        <div className="lg:col-span-1">
+          <Card className="border-gray-200 shadow-sm">
+            <CardHeader className="border-b border-gray-100">
+              <CardTitle className="text-lg font-medium">Featured Sections</CardTitle>
 
-      {/* Sections Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <AnimatePresence>
-          {loading ? (
-            Array.from({ length: 8 }).map((_, index) => (
-              <Card key={index} className="border-gray-200 shadow-sm">
-                <CardContent className="p-0">
-                  <div className="aspect-video bg-gray-200 animate-pulse rounded-t-lg" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-4 bg-gray-200 animate-pulse rounded" />
-                    <div className="h-3 bg-gray-200 animate-pulse rounded w-2/3" />
-                    <div className="flex justify-between">
-                      <div className="h-6 bg-gray-200 animate-pulse rounded w-16" />
-                      <div className="h-6 bg-gray-200 animate-pulse rounded w-20" />
+              {/* Filters and Search */}
+              <div className="space-y-2 mt-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search sections..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="icon" onClick={loadSections}>
+                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[calc(100vh-320px)]">
+                {loading ? (
+                  // Loading skeletons
+                  <div className="space-y-2 p-4">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3">
+                        <div className="w-12 h-12 bg-gray-200 animate-pulse rounded" />
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-gray-200 animate-pulse rounded w-3/4" />
+                          <div className="h-3 bg-gray-200 animate-pulse rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : sections.length === 0 ? (
+                  // Empty state
+                  <div className="text-center py-12">
+                    <Star className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-base font-medium text-gray-900 mb-1">No sections found</h3>
+                    <p className="text-gray-500 text-sm mb-4">Create your first featured section</p>
+                  </div>
+                ) : (
+                  // Section list
+                  <div className="divide-y divide-gray-100">
+                    {sections.map((section) => (
+                      <div
+                        key={section.id}
+                        className={`flex items-start gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors ${selectedSection?.id === section.id ? 'bg-gray-50' : ''}`}
+                        onClick={() => handleEdit(section)}
+                      >
+                        <div className="w-16 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                          <img
+                            src={section.image_url || "/placeholder.svg"}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-gray-900 truncate">
+                              {section.name.ar || section.name.en || "Unnamed Section"}
+                            </h3>
+                            <span className={`text-xs ml-2 rounded-full px-2 py-0.5 ${section.availability
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-600"
+                              }`}>
+                              {section.availability ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                          {section.link && (
+                            <div className="flex items-center text-xs text-blue-600 mt-1">
+                              <ExternalLink onClick={() => section.link && window.open(section.link, "_blank")} className="w-3 h-3 mr-1" />
+                              {/* <span className="truncate">{section.link}</span> */}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+                            <div className="flex items-center">
+                              <Calendar className="w-3 h-3 mr-1" />
+                              <span>{formatDate(section.start_date)}</span>
+                            </div>
+                            <span>ID: {section.id}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Panel: Form or Default Content */}
+        <div className="lg:col-span-2">
+          <Card className="border-gray-200 shadow-sm h-full">
+            {isEditing ? (
+              <>
+                <CardHeader className="border-b border-gray-100 flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-medium">
+                    {selectedSection ? "Edit Featured Section" : "Create New Featured Section"}
+                  </CardTitle>
+                  <Button variant="ghost" size="icon" onClick={() => { setIsEditing(false); setSelectedSection(null); }}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {/* Name */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name-ar">Name (Arabic)</Label>
+                        <Input
+                          id="name-ar"
+                          value={formData.name.ar}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              name: { ...prev.name, ar: e.target.value },
+                            }))
+                          }
+                          placeholder="اسم القسم المميز"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="name-en">Name (English)</Label>
+                        <Input
+                          id="name-en"
+                          value={formData.name.en}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              name: { ...prev.name, en: e.target.value },
+                            }))
+                          }
+                          placeholder="Featured Section Name"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Image Upload */}
+                    <div className="space-y-2">
+                      <Label>Featured Image</Label>
+                      <ImageUpload
+                        value={formData.image}
+                        imageName={formData.image_name}
+                        onChange={handleImageChange}
+                        folder="products"
+                        className="mt-2"
+                      />
+                    </div>
+
+                    {/* Link */}
+                    <div className="space-y-2">
+                      <Label htmlFor="link">Link URL</Label>
+                      <Input
+                        id="link"
+                        value={formData.link}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, link: e.target.value }))}
+                        placeholder="https://example.com"
+                        type="url"
+                      />
+                    </div>
+
+                    {/* Date Range */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="start-date">Start Date</Label>
+                        <Input
+                          id="start-date"
+                          type="datetime-local"
+                          value={formData.start_date}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              // Format date as Y-m-d H:i:s
+                              const date = new Date(e.target.value);
+                              const formattedDate = date.toISOString().slice(0, 19).replace("T", " ");
+                              setFormData((prev) => ({ ...prev, start_date: formattedDate }));
+                            } else {
+                              setFormData((prev) => ({ ...prev, start_date: "" }));
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="end-date">End Date</Label>
+                        <Input
+                          id="end-date"
+                          type="datetime-local"
+                          value={formData.end_date}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              // Format date as Y-m-d H:i:s
+                              const date = new Date(e.target.value);
+                              const formattedDate = date.toISOString().slice(0, 19).replace("T", " ");
+                              setFormData((prev) => ({ ...prev, end_date: formattedDate }));
+                            } else {
+                              setFormData((prev) => ({ ...prev, end_date: "" }));
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Availability */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <Label className="font-medium">Availability</Label>
+                        <p className="text-sm text-gray-500">Enable or disable this featured section</p>
+                      </div>
+                      <Switch
+                        checked={formData.availability}
+                        onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, availability: checked }))}
+                      />
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-            ))
-          ) : sections.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <Star className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No featured sections found</h3>
-              <p className="text-gray-500 mb-4">Create your first featured section to showcase content</p>
-              <Button
-                onClick={() => {
-                  resetForm()
-                  setShowCreateModal(true)
-                }}
-                className="bg-yellow-600 hover:bg-yellow-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create First Section
-              </Button>
-            </div>
-          ) : (
-            sections.map((section, index) => (
-              <motion.div
-                key={section.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className="border-gray-200 shadow-sm hover:shadow-md transition-shadow group">
-                  <CardContent className="p-0">
-                    <div className="relative aspect-video overflow-hidden rounded-t-lg">
-                      <img
-                        src={section.image_url || "/placeholder.svg?height=200&width=300"}
-                        alt={section.name.ar || section.name.en || "Featured Section"}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute top-2 right-2 flex space-x-1">
-                        <Badge variant={section.availability ? "default" : "secondary"} className="text-xs">
-                          {section.availability ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => openEditModal(section)}
-                            className="bg-white/90 hover:bg-white"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleToggleAvailability(section)}
-                            className="bg-white/90 hover:bg-white"
-                          >
-                            {section.availability ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleDeleteSection(section.id)}
-                            className="bg-white/90 hover:bg-white text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-medium text-gray-900 mb-2 truncate">
-                        {section.name.ar || section.name.en || "Unnamed Section"}
-                      </h3>
-                      {section.link && (
-                        <div className="flex items-center text-sm text-blue-600 mb-2">
-                          <ExternalLink className="w-3 h-3 mr-1" />
-                          <span className="truncate">{section.link}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          <span>{formatDate(section.start_date)}</span>
-                        </div>
-                        <span>ID: {section.id}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
+                <CardFooter className="border-t bg-gray-50 p-4 flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => { setIsEditing(false); setSelectedSection(null); }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-yellow-600 hover:bg-yellow-700"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {selectedSection ? "Updating..." : "Creating..."}
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        {selectedSection ? "Update Section" : "Create Section"}
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </>
+            ) : (
+              // Default state when nothing is selected
+              <div className="flex flex-col items-center justify-center h-full p-8">
+                <div className="text-center max-w-md">
+                  <div className="bg-yellow-50 p-3 rounded-full inline-block mb-4">
+                    <Settings className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <h2 className="text-2xl font-semibold mb-2">Featured Sections Management</h2>
+                  <p className="text-gray-500 mb-6">
+                    Select a featured section from the list to edit its details, or create a new one to add to your website.
+                  </p>
+                  <Button onClick={handleNew} className="bg-yellow-600 hover:bg-yellow-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create New Section
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
-
-      {/* Create/Edit Modal */}
-      <Dialog
-        open={showCreateModal || !!editingSection}
-        onOpenChange={() => {
-          setShowCreateModal(false)
-          setEditingSection(null)
-          resetForm()
-        }}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <Star className="w-5 h-5 mr-2 text-yellow-600" />
-              {editingSection ? "Edit Featured Section" : "Create New Featured Section"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            {/* Name */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name-ar">Name (Arabic)</Label>
-                <Input
-                  id="name-ar"
-                  value={formData.name.ar}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      name: { ...prev.name, ar: e.target.value },
-                    }))
-                  }
-                  placeholder="اسم القسم المميز"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name-en">Name (English)</Label>
-                <Input
-                  id="name-en"
-                  value={formData.name.en}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      name: { ...prev.name, en: e.target.value },
-                    }))
-                  }
-                  placeholder="Featured Section Name"
-                />
-              </div>
-            </div>
-
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label>Featured Image</Label>
-              <ImageUpload
-                value={formData.image}
-                imageName={formData.image_name}
-                onChange={handleImageChange}
-                // uploadFunction={(file) => apiService.uploadImage(file, "featured-sections")}
-                folder="products"
-                className="mt-2"
-              />
-            </div>
-
-            {/* Link */}
-            <div className="space-y-2">
-              <Label htmlFor="link">Link URL</Label>
-              <Input
-                id="link"
-                value={formData.link}
-                onChange={(e) => setFormData((prev) => ({ ...prev, link: e.target.value }))}
-                placeholder="https://example.com"
-                type="url"
-              />
-            </div>
-
-            {/* Date Range */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start-date">Start Date</Label>
-                <Input
-                  id="start-date"
-                  type="datetime-local"
-                  value={formData.start_date}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      // Format date as Y-m-d H:i:s
-                      const date = new Date(e.target.value);
-                      const formattedDate = date.toISOString().slice(0, 19).replace("T", " ");
-                      setFormData((prev) => ({ ...prev, start_date: formattedDate }));
-                    } else {
-                      setFormData((prev) => ({ ...prev, start_date: "" }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="end-date">End Date</Label>
-                <Input
-                  id="end-date"
-                  type="datetime-local"
-                  value={formData.end_date}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      // Format date as Y-m-d H:i:s
-                      const date = new Date(e.target.value);
-                      const formattedDate = date.toISOString().slice(0, 19).replace("T", " ");
-                      setFormData((prev) => ({ ...prev, end_date: formattedDate }));
-                    } else {
-                      setFormData((prev) => ({ ...prev, end_date: "" }));
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Availability */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <Label className="font-medium">Availability</Label>
-                <p className="text-sm text-gray-500">Enable or disable this featured section</p>
-              </div>
-              <Switch
-                checked={formData.availability}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, availability: checked }))}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowCreateModal(false)
-                setEditingSection(null)
-                resetForm()
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={editingSection ? handleUpdateSection : handleCreateSection}
-              disabled={saving}
-              className="bg-yellow-600 hover:bg-yellow-700"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {editingSection ? "Updating..." : "Creating..."}
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  {editingSection ? "Update Section" : "Create Section"}
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

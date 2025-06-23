@@ -260,10 +260,10 @@ export default function BannersPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-6 h-full">
         {/* Left Panel - Categories List */}
-        <div className="col-span-4">
-          <Card>
+        <div className="col-span-4  h-full">
+          <Card className="border-gray-200 shadow-sm h-full">
             <CardContent className="p-0">
               <div className="p-4 border-b">
                 <h3 className="font-semibold">Banners</h3>
@@ -274,7 +274,7 @@ export default function BannersPage() {
                   <button className="text-blue-600">Expand All</button>
                 </div> */}
               </div>
-              <div className="max-h-[600px] overflow-y-auto">
+              <div className=" overflow-y-auto h-full">
                 {banners.map((banner) => (
                   <div
                     key={banner.id}
@@ -338,12 +338,12 @@ export default function BannersPage() {
         </div>
 
         {/* Right Panel - Edit Form */}
-        <div className="col-span-8">
-          <Card>
+        <div className="col-span-8 " >
+          <Card className="border-gray-200 shadow-sm h-full">
             <CardContent className="p-6">
               {/* Default State - No Banner Selected */}
               {!selectedBanner && !isEditing && (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="flex flex-col items-center justify-center h-full p-8">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                     <Plus className="h-8 w-8 text-blue-600" />
                   </div>
