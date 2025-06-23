@@ -86,9 +86,9 @@ export function ImageUpload({ value, imageName, onChange, folder, className }: I
 
   return (
     <div className={className}>
-      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" multiple />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
-      {/* {preview ? (
+      {preview ? (
         <motion.div
           className="relative inline-block"
           initial={{ opacity: 0, scale: 0.9 }}
@@ -110,33 +110,31 @@ export function ImageUpload({ value, imageName, onChange, folder, className }: I
             <X className="h-3 w-3" />
           </Button>
         </motion.div>
-      ) :  */}
-
-      {/* ( */}
-      <div
-        className={`w-32 h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
-          }`}
-        onClick={() => fileInputRef.current?.click()}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        {uploading ? (
-          <div className="text-center">
-            <Loader2 className="h-6 w-6 text-blue-600 animate-spin mx-auto mb-2" />
-            <span className="text-xs text-gray-500">Uploading...</span>
-          </div>
-        ) : (
-          <>
-            <ImageIcon className="h-8 w-8 text-gray-400 mb-2" />
-            <span className="text-xs text-gray-500 text-center">
-              {dragActive ? "Drop image here" : "Click or drag to upload"}
-            </span>
-          </>
-        )}
-      </div>
-      {/* )} */}
+      ) : (
+        <div
+          className={`w-32 h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+            }`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+        >
+          {uploading ? (
+            <div className="text-center">
+              <Loader2 className="h-6 w-6 text-blue-600 animate-spin mx-auto mb-2" />
+              <span className="text-xs text-gray-500">Uploading...</span>
+            </div>
+          ) : (
+            <>
+              <ImageIcon className="h-8 w-8 text-gray-400 mb-2" />
+              <span className="text-xs text-gray-500 text-center">
+                {dragActive ? "Drop image here" : "Click or drag to upload"}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="mt-2" style={{ display: "flex", justifyContent: "center" }}>
         {/* <Button
