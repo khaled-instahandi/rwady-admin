@@ -384,6 +384,10 @@ export default function HomeSectionsPage() {
       setLoadingBrands(false)
     }
   }
+  useEffect(() => {
+    loadCategories()
+    loadBrands()
+  }, [])
 
   const resetForm = () => {
     setFormData({
@@ -682,7 +686,7 @@ export default function HomeSectionsPage() {
             </div>
 
             {/* Type and Status */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label>Section Type</Label>
                 <Select
@@ -690,11 +694,11 @@ export default function HomeSectionsPage() {
                   onValueChange={(value) => {
                     setFormData((prev) => ({ ...prev, type: value, item_id: null }));
                     // Load related data when selecting specific types
-                    if (value === "category_products" && categories.length === 0) {
-                      loadCategories();
-                    } else if (value === "brand_products" && brands.length === 0) {
-                      loadBrands();
-                    }
+                    // if (value === "category_products" && categories.length === 0) {
+                    //   loadCategories();
+                    // } else if (value === "brand_products" && brands.length === 0) {
+                    //   loadBrands();
+                    // }
                   }}
                 >
                   <SelectTrigger>
@@ -709,7 +713,7 @@ export default function HomeSectionsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
                   value={formData.status}
@@ -723,7 +727,7 @@ export default function HomeSectionsPage() {
                     <SelectItem value="dynamic">Dynamic</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
             </div>
 
             {/* Category or Brand Selection based on section type */}
@@ -777,8 +781,8 @@ export default function HomeSectionsPage() {
             )}
 
             {/* Order and Limit */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              {/* <div className="space-y-2">
                 <Label htmlFor="orders">Display Order</Label>
                 <Input
                   id="orders"
@@ -787,7 +791,7 @@ export default function HomeSectionsPage() {
                   onChange={(e) => setFormData((prev) => ({ ...prev, orders: Number(e.target.value) }))}
                   min="1"
                 />
-              </div>
+              </div> */}
               <div className="space-y-2">
                 <Label htmlFor="limit">Item Limit</Label>
                 <Input
@@ -803,7 +807,7 @@ export default function HomeSectionsPage() {
             </div>
 
             {/* Show More Path */}
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="show-more-path">Show More Path</Label>
               <Input
                 id="show-more-path"
@@ -811,11 +815,11 @@ export default function HomeSectionsPage() {
                 onChange={(e) => setFormData((prev) => ({ ...prev, show_more_path: e.target.value }))}
                 placeholder="e.g., products?category=electronics"
               />
-            </div>
+            </div> */}
 
             {/* Switches */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              {/* <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
                   <Label className="font-medium">Show Title</Label>
                   <p className="text-sm text-gray-500">Display the section title on the website</p>
@@ -835,7 +839,7 @@ export default function HomeSectionsPage() {
                   checked={formData.can_show_more}
                   onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, can_show_more: checked }))}
                 />
-              </div>
+              </div> */}
 
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
