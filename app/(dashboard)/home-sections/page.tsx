@@ -691,18 +691,13 @@ export default function HomeSectionsPage() {
                 <Label>Section Type</Label>
                 <Select
                   value={formData.type}
+                  disabled={editingSection !== null} // Disable type selection when editing
                   onValueChange={(value) => {
                     setFormData((prev) => ({ ...prev, type: value, item_id: null }));
-                    // Load related data when selecting specific types
-                    // if (value === "category_products" && categories.length === 0) {
-                    //   loadCategories();
-                    // } else if (value === "brand_products" && brands.length === 0) {
-                    //   loadBrands();
-                    // }
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select section type" />
                   </SelectTrigger>
                   <SelectContent>
                     {sectionTypes.map((type) => (
@@ -737,6 +732,7 @@ export default function HomeSectionsPage() {
                   {formData.type === "category_products" ? "Select Category" : "Select Brand"}
                 </Label>
                 <Select
+                  disabled={editingSection !== null} // Disable selection when editing
                   value={formData.item_id?.toString() || ""}
                   onValueChange={(value) =>
                     setFormData((prev) => ({ ...prev, item_id: parseInt(value) }))
