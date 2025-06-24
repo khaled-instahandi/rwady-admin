@@ -1626,7 +1626,7 @@ export default function ProductEditPage() {
                       {(formData.categories || []).map((categoryId) => {
                         const category = availableCategories.find(c => c.id === categoryId)
                         if (!category) return null
-                        
+
                         return (
                           <div key={categoryId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                             <div className="flex items-center gap-3">
@@ -1650,7 +1650,7 @@ export default function ProductEditPage() {
                                 <DropdownMenuItem onClick={() => setShowCategoryModal(true)}>
                                   Edit category
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   className="text-red-600"
                                   onClick={() => {
                                     const currentCategories = formData.categories || [];
@@ -1704,7 +1704,7 @@ export default function ProductEditPage() {
                       {(formData.brands || []).map((brandId) => {
                         const brand = availableBrands.find(b => b.id === brandId)
                         if (!brand) return null
-                        
+
                         return (
                           <div key={brandId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                             <div className="flex items-center gap-3">
@@ -1728,7 +1728,7 @@ export default function ProductEditPage() {
                                 <DropdownMenuItem onClick={() => setShowBrandModal(true)}>
                                   Edit brand
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   className="text-red-600"
                                   onClick={() => {
                                     const currentBrands = formData.brands || [];
@@ -2161,7 +2161,7 @@ export default function ProductEditPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Stock Management */}
-                  <div className="space-y-4">
+                  {/* <div className="space-y-4">
                     <h3 className="text-lg font-medium">Stock Management</h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2222,7 +2222,7 @@ export default function ProductEditPage() {
                     </div>
                   </div>
 
-                  <Separator />
+                  <Separator /> */}
 
                   {/* Shipping Settings */}
                   <div className="space-y-4">
@@ -2586,66 +2586,68 @@ export default function ProductEditPage() {
           </Card>
 
           {/* Stock Control */}
-          {/* <Card>
-            <CardHeader>
-              <CardTitle>Stock Control</CardTitle>
-            </CardHeader>
+          <Card>
+
+            <CardHeader>Stock Management</CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-600">In Stock (∞)</Label>
-              </div>
-
-              <div>
-                <Label htmlFor="stock-quantity">Quantity in Stock</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      id="stock-limited"
-                      name="stock-type"
-                      checked={formData.stock_unlimited === false}
-                      onChange={() => handleInputChange("stock_unlimited", false)}
-                      className="mr-2"
-                    />
-                    <Input
-                      type="number"
-                      value={formData.stock_unlimited === true ? "" : formData.stock}
-                      onChange={(e) => handleInputChange("stock", Number.parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                      disabled={formData.stock_unlimited === true}
-                      className="w-20"
-                    />
-                    <span className="ml-2 text-sm text-gray-600">items</span>
-                  </div>
-                </div>
-                <div className="flex items-center mt-2">
-                  <input
-                    type="radio"
-                    id="stock-unlimited"
-                    name="stock-type"
-                    checked={formData.stock_unlimited === true}
-                    onChange={() => handleInputChange("stock_unlimited", true)}
-                    className="mr-2"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="stock">Stock Quantity</Label>
+                  <Input
+                    id="stock"
+                    type="number"
+                    value={formData.stock || 0}
+                    onChange={(e) => handleInputChange("stock", Number.parseInt(e.target.value) || 0)}
+                    disabled={formData.stock_unlimited === true}
                   />
-                  <Label htmlFor="stock-unlimited">Unlimited</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={formData.stock_unlimited === true}
+                    onCheckedChange={(checked) => handleInputChange("stock_unlimited", checked ? true : null)}
+                  />
+                  <Label>Unlimited Stock</Label>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Button variant="link" className="text-blue-600 p-0 h-auto">
-                  Set purchase quantity limits →
-                </Button>
-                <p className="text-sm text-gray-600">
-                  Specify the minimum and maximum number of items a customer can buy in one order.
-                </p>
+              <div>
+                <Label htmlFor="out-of-stock">When Out of Stock</Label>
+                <select
+                  id="out-of-stock"
+                  value={formData.out_of_stock || "hide_from_storefront"}
+                  onChange={(e) => handleInputChange("out_of_stock", e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="hide_from_storefront">Hide from storefront</option>
+                  <option value="show_on_storefront">Show on storefront</option>
+                  <option value="show_and_allow_pre_order">Show and allow pre-order</option>
+                </select>
               </div>
 
-              <Button variant="link" className="text-blue-600 p-0 h-auto">
-                Hide stock control
-              </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="minimum-purchase">Minimum Purchase Quantity</Label>
+                  <Input
+                    id="minimum-purchase"
+                    type="number"
+                    value={formData.minimum_purchase || 1}
+                    onChange={(e) => handleInputChange("minimum_purchase", Number.parseInt(e.target.value) || 1)}
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maximum-purchase">Maximum Purchase Quantity</Label>
+                  <Input
+                    id="maximum-purchase"
+                    type="number"
+                    value={formData.maximum_purchase || 5}
+                    onChange={(e) => handleInputChange("maximum_purchase", Number.parseInt(e.target.value) || 5)}
+                    min="1"
+                  />
+                </div>
+              </div>
             </CardContent>
-          </Card> */}
-
+          </Card>
           {/* Product Features */}
           <Card>
             <CardHeader>
@@ -2755,8 +2757,8 @@ export default function ProductEditPage() {
             {/* Categories list */}
             <div className="max-h-96 overflow-y-auto space-y-1">
               {availableCategories
-                .filter(category => 
-                  !categorySearchQuery || 
+                .filter(category =>
+                  !categorySearchQuery ||
                   category.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
                 )
                 .map((category) => (
@@ -2788,20 +2790,20 @@ export default function ProductEditPage() {
                   </div>
                 ))}
 
-              {availableCategories.filter(category => 
-                !categorySearchQuery || 
+              {availableCategories.filter(category =>
+                !categorySearchQuery ||
                 category.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
               ).length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p className="text-sm">
-                    {categorySearchQuery ? "No categories found matching your search" : "No categories available"}
-                  </p>
-                </div>
-              )}
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">
+                      {categorySearchQuery ? "No categories found matching your search" : "No categories available"}
+                    </p>
+                  </div>
+                )}
             </div>
 
             {/* Footer with store info */}
-           
+
           </div>
         </DialogContent>
       </Dialog>
@@ -2835,8 +2837,8 @@ export default function ProductEditPage() {
             {/* Brands list */}
             <div className="max-h-96 overflow-y-auto space-y-1">
               {availableBrands
-                .filter(brand => 
-                  !brandSearchQuery || 
+                .filter(brand =>
+                  !brandSearchQuery ||
                   brand.name.toLowerCase().includes(brandSearchQuery.toLowerCase())
                 )
                 .map((brand) => (
@@ -2867,23 +2869,23 @@ export default function ProductEditPage() {
                   </div>
                 ))}
 
-              {availableBrands.filter(brand => 
-                !brandSearchQuery || 
+              {availableBrands.filter(brand =>
+                !brandSearchQuery ||
                 brand.name.toLowerCase().includes(brandSearchQuery.toLowerCase())
               ).length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p className="text-sm">
-                    {brandSearchQuery ? "No brands found matching your search" : "No brands available"}
-                  </p>
-                </div>
-              )}
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">
+                      {brandSearchQuery ? "No brands found matching your search" : "No brands available"}
+                    </p>
+                  </div>
+                )}
             </div>
 
             {/* Footer with store info */}
-          
+
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   )
 }
