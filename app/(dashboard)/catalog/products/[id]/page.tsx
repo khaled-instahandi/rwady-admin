@@ -36,6 +36,9 @@ import {
   Video,
   AlertTriangle,
   GripVertical,
+  MoreVertical,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
 import {
   Dialog,
@@ -45,6 +48,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
 interface ProductFormData {
   name: { ar: string; en: string }
@@ -117,6 +127,11 @@ export default function ProductEditPage() {
   const [showSaveNotification, setShowSaveNotification] = useState(false)
   const [availableCategories, setAvailableCategories] = useState<{ id: number; name: string }[]>([])
   const [availableBrands, setAvailableBrands] = useState<{ id: number; name: string }[]>([])
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [categorySearchQuery, setCategorySearchQuery] = useState("")
+  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
+  const [showBrandModal, setShowBrandModal] = useState(false)
+  const [brandSearchQuery, setBrandSearchQuery] = useState("")
   const [relatedProducts, setRelatedProducts] = useState<{ id: number; name: string; price: number; image?: string }[]>([])
   const [searchRelatedQuery, setSearchRelatedQuery] = useState("")
   const [searchResults, setSearchResults] = useState<{
@@ -1592,70 +1607,156 @@ export default function ProductEditPage() {
 
                   {/* Categories */}
                   <div>
-                    <Label className="text-base font-medium">Categories</Label>
-                    <p className="text-sm text-gray-600 mb-2">Select the categories this product belongs to</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <Label className="text-base font-medium">Categories</Label>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCategoryModal(true)}
+                      >
+                        Manage Categories
+                      </Button>
+                    </div>
 
-                    <div className="max-h-40 overflow-y-auto border rounded-lg p-2">
-                      {availableCategories.map((category) => (
-                        <div key={category.id} className="flex items-center space-x-2 p-1">
-                          <Checkbox
-                            id={`category-${category.id}`}
-                            checked={(formData.categories || []).includes(category.id)}
-                            onCheckedChange={(checked) => {
-                              const currentCategories = formData.categories || [];
-                              if (checked) {
-                                handleInputChange("categories", [...currentCategories, category.id]);
-                              } else {
-                                handleInputChange("categories", currentCategories.filter(id => id !== category.id));
-                              }
-                            }}
-                          />
-                          <Label
-                            htmlFor={`category-${category.id}`}
-                            className="text-sm font-normal cursor-pointer"
+                    <div className="space-y-2">
+                      {/* Selected Categories */}
+                      {(formData.categories || []).map((categoryId) => {
+                        const category = availableCategories.find(c => c.id === categoryId)
+                        if (!category) return null
+                        
+                        return (
+                          <div key={categoryId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-sm">{category.name}</span>
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                                Unsaved
+                              </Badge>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  // Make this category default - implement if needed
+                                }}>
+                                  Make default
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowCategoryModal(true)}>
+                                  Edit category
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-red-600"
+                                  onClick={() => {
+                                    const currentCategories = formData.categories || [];
+                                    handleInputChange("categories", currentCategories.filter(id => id !== categoryId));
+                                  }}
+                                >
+                                  Unassign category
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )
+                      })}
+
+                      {/* Empty state */}
+                      {(!formData.categories || formData.categories.length === 0) && (
+                        <div className="text-center py-8 text-gray-500">
+                          <p className="text-sm">No categories assigned</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setShowCategoryModal(true)}
                           >
-                            {category.name}
-                          </Label>
+                            Add Category
+                          </Button>
                         </div>
-                      ))}
-
-                      {availableCategories.length === 0 && (
-                        <p className="text-center py-2 text-gray-500">No categories available</p>
                       )}
                     </div>
                   </div>
 
                   {/* Brands */}
                   <div>
-                    <Label className="text-base font-medium">Brands</Label>
-                    <p className="text-sm text-gray-600 mb-2">Select the brands this product belongs to</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <Label className="text-base font-medium">Brands</Label>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowBrandModal(true)}
+                      >
+                        Manage Brands
+                      </Button>
+                    </div>
 
-                    <div className="max-h-40 overflow-y-auto border rounded-lg p-2">
-                      {availableBrands.map((brand) => (
-                        <div key={brand.id} className="flex items-center space-x-2 p-1">
-                          <Checkbox
-                            id={`brand-${brand.id}`}
-                            checked={(formData.brands || []).includes(brand.id)}
-                            onCheckedChange={(checked) => {
-                              const currentBrands = formData.brands || [];
-                              if (checked) {
-                                handleInputChange("brands", [...currentBrands, brand.id]);
-                              } else {
-                                handleInputChange("brands", currentBrands.filter(id => id !== brand.id));
-                              }
-                            }}
-                          />
-                          <Label
-                            htmlFor={`brand-${brand.id}`}
-                            className="text-sm font-normal cursor-pointer"
+                    <div className="space-y-2">
+                      {/* Selected Brands */}
+                      {(formData.brands || []).map((brandId) => {
+                        const brand = availableBrands.find(b => b.id === brandId)
+                        if (!brand) return null
+                        
+                        return (
+                          <div key={brandId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-sm">{brand.name}</span>
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                                Unsaved
+                              </Badge>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  // Make this brand default - implement if needed
+                                }}>
+                                  Make default
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowBrandModal(true)}>
+                                  Edit brand
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-red-600"
+                                  onClick={() => {
+                                    const currentBrands = formData.brands || [];
+                                    handleInputChange("brands", currentBrands.filter(id => id !== brandId));
+                                  }}
+                                >
+                                  Unassign brand
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )
+                      })}
+
+                      {/* Empty state */}
+                      {(!formData.brands || formData.brands.length === 0) && (
+                        <div className="text-center py-8 text-gray-500">
+                          <p className="text-sm">No brands assigned</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setShowBrandModal(true)}
                           >
-                            {brand.name}
-                          </Label>
+                            Add Brand
+                          </Button>
                         </div>
-                      ))}
-
-                      {availableBrands.length === 0 && (
-                        <p className="text-center py-2 text-gray-500">No brands available</p>
                       )}
                     </div>
                   </div>
@@ -2622,6 +2723,165 @@ export default function ProductEditPage() {
               Leave Without Saving
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Selection Modal */}
+      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select categories to assign to this product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search for a category by name"
+                value={categorySearchQuery}
+                onChange={(e) => setCategorySearchQuery(e.target.value)}
+                className="pl-10"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                onClick={() => setCategorySearchQuery("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+
+            {/* Categories list */}
+            <div className="max-h-96 overflow-y-auto space-y-1">
+              {availableCategories
+                .filter(category => 
+                  !categorySearchQuery || 
+                  category.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
+                )
+                .map((category) => (
+                  <div key={category.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <div className="flex items-center space-x-3">
+                      {/* Expandable icon placeholder - you can implement hierarchy later */}
+                      {/* <div className="w-4 h-4 flex items-center justify-center">
+                        <ChevronRight className="h-3 w-3 text-gray-400" />
+                      </div> */}
+                      <Label
+                        htmlFor={`modal-category-${category.id}`}
+                        className="text-sm font-normal cursor-pointer flex-1"
+                      >
+                        {category.name}
+                      </Label>
+                    </div>
+                    <Checkbox
+                      id={`modal-category-${category.id}`}
+                      checked={(formData.categories || []).includes(category.id)}
+                      onCheckedChange={(checked) => {
+                        const currentCategories = formData.categories || [];
+                        if (checked) {
+                          handleInputChange("categories", [...currentCategories, category.id]);
+                        } else {
+                          handleInputChange("categories", currentCategories.filter(id => id !== category.id));
+                        }
+                      }}
+                    />
+                  </div>
+                ))}
+
+              {availableCategories.filter(category => 
+                !categorySearchQuery || 
+                category.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
+              ).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">
+                    {categorySearchQuery ? "No categories found matching your search" : "No categories available"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with store info */}
+           
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Brand Selection Modal */}
+      <Dialog open={showBrandModal} onOpenChange={setShowBrandModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select brands to assign to this product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search for a brand by name"
+                value={brandSearchQuery}
+                onChange={(e) => setBrandSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                onClick={() => setBrandSearchQuery("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+
+            {/* Brands list */}
+            <div className="max-h-96 overflow-y-auto space-y-1">
+              {availableBrands
+                .filter(brand => 
+                  !brandSearchQuery || 
+                  brand.name.toLowerCase().includes(brandSearchQuery.toLowerCase())
+                )
+                .map((brand) => (
+                  <div key={brand.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <div className="flex items-center space-x-3">
+                      {/* <div className="w-4 h-4 flex items-center justify-center">
+                        <ChevronRight className="h-3 w-3 text-gray-400" />
+                      </div> */}
+                      <Label
+                        htmlFor={`modal-brand-${brand.id}`}
+                        className="text-sm font-normal cursor-pointer flex-1"
+                      >
+                        {brand.name}
+                      </Label>
+                    </div>
+                    <Checkbox
+                      id={`modal-brand-${brand.id}`}
+                      checked={(formData.brands || []).includes(brand.id)}
+                      onCheckedChange={(checked) => {
+                        const currentBrands = formData.brands || [];
+                        if (checked) {
+                          handleInputChange("brands", [...currentBrands, brand.id]);
+                        } else {
+                          handleInputChange("brands", currentBrands.filter(id => id !== brand.id));
+                        }
+                      }}
+                    />
+                  </div>
+                ))}
+
+              {availableBrands.filter(brand => 
+                !brandSearchQuery || 
+                brand.name.toLowerCase().includes(brandSearchQuery.toLowerCase())
+              ).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">
+                    {brandSearchQuery ? "No brands found matching your search" : "No brands available"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with store info */}
+          
+          </div>
         </DialogContent>
       </Dialog>
     </div>

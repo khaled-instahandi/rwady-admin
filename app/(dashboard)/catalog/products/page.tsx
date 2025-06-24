@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, use } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -51,11 +52,17 @@ const useDebounce = (value: string, delay: number) => {
 }
 
 export default function ProductsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   const [searchInput, setSearchInput] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = searchParams.get('page')
+    return pageParam ? parseInt(pageParam, 10) : 1
+  })
   const [totalPages, setTotalPages] = useState(1)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [productToDelete, setProductToDelete] = useState<Product | null>(null)
@@ -92,6 +99,32 @@ export default function ProductsPage() {
   // Apply debounce to search input
   const debouncedSearch = useDebounce(searchInput, 500)
 
+  // Function to update URL parameters
+  const updateUrlParams = useCallback((page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (page > 1) {
+      params.set('page', page.toString())
+    } else {
+      params.delete('page')
+    }
+    router.push(`?${params.toString()}`, { scroll: false })
+  }, [router, searchParams])
+
+  // Function to update current page and URL
+  const updateCurrentPage = useCallback((page: number) => {
+    setCurrentPage(page)
+    updateUrlParams(page)
+  }, [updateUrlParams])
+
+  // Sync currentPage with URL parameter changes
+  useEffect(() => {
+    const pageParam = searchParams.get('page')
+    const urlPage = pageParam ? parseInt(pageParam, 10) : 1
+    if (urlPage !== currentPage) {
+      setCurrentPage(urlPage)
+    }
+  }, [searchParams, currentPage])
+
   // Fetch categories for the filter dropdown
   const fetchCategories = useCallback(async () => {
     try {
@@ -126,7 +159,6 @@ export default function ProductsPage() {
     fetchBrands()
   }, [fetchCategories, fetchBrands])
 
-
   // Format the sort selection for API parameters
   const getSortParams = useCallback(() => {
     switch (filters.sort_by) {
@@ -158,11 +190,7 @@ export default function ProductsPage() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      if (!debouncedSearch) {
-        setLoading(false)
-      } else {
-        setLoading(true)
-      }
+      setLoading(true)
 
       const sortParams = getSortParams()
 
@@ -219,61 +247,20 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentPage, debouncedSearch, filters, getSortParams, products.length, toast])
-
-  // Fetch categories and brands for filters
-  const fetchCategoriesAndBrands = useCallback(async () => {
-    setLoadingFilters(true)
-    try {
-      const [categoriesResponse, brandsResponse] = await Promise.all([
-        apiService.getCategories({ page: 1, limit: 100 }),
-        apiService.getBrands({ page: 1, limit: 100 }),
-      ])
-
-      if (categoriesResponse.success) {
-        setCategories(categoriesResponse.data)
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load categories",
-          variant: "destructive",
-        })
-      }
-
-      if (brandsResponse.success) {
-        setBrands(brandsResponse.data)
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load brands",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error fetching categories and brands:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred while loading categories and brands",
-        variant: "destructive",
-      })
-    } finally {
-      setLoadingFilters(false)
-    }
-  }, [toast])
+  }, [currentPage, debouncedSearch, filters, getSortParams, toast])
 
   useEffect(() => {
     fetchProducts()
-    fetchCategoriesAndBrands()
-  }, [fetchProducts, fetchCategoriesAndBrands])
+  }, [fetchProducts])
 
   const handleSearch = (query: string) => {
     setSearchInput(query)
-    setCurrentPage(1)
+    updateCurrentPage(1)
   }
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
-    setCurrentPage(1)
+    updateCurrentPage(1)
   }
 
   const clearFilters = () => {
@@ -288,7 +275,7 @@ export default function ProductsPage() {
       sort_direction: "asc",
       shipping_type: "any"
     })
-    setCurrentPage(1)
+    updateCurrentPage(1)
   }
 
   const handleSelectProduct = (productId: number) => {
@@ -647,7 +634,7 @@ export default function ProductsPage() {
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="outline"
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            onClick={() => updateCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
           >
             Previous
@@ -657,7 +644,7 @@ export default function ProductsPage() {
           </span>
           <Button
             variant="outline"
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() => updateCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
           >
             Next
