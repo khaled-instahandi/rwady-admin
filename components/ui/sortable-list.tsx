@@ -36,29 +36,23 @@ function SortableItem({ id, children, className }: SortableItemProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative", 
-        isDragging ? "z-50 shadow-xl bg-blue-50 border-blue-200" : "",
-        isDragging ? "opacity-80" : "",
+        "relative cursor-move select-none", 
+        isDragging ? "z-50 shadow-xl bg-blue-50 border-blue-200 scale-105" : "",
+        isDragging ? "opacity-90" : "",
+        "hover:shadow-md transition-all duration-50",
         className
       )}
       {...attributes}
+      {...listeners}
     >
+      {/* Drag indicator icon */}
       <div className={cn(
-        "absolute left-2 top-1/2 transform -translate-y-1/2 z-10",
-        isDragging ? "text-blue-600" : ""
+        "absolute left-2 top-2 pointer-events-none",
+        isDragging ? "text-blue-600" : "text-gray-400"
       )}>
-        <div
-          {...listeners}
-          className={cn(
-            "cursor-grab active:cursor-grabbing p-2 hover:bg-gray-100 rounded-full transition-all",
-            isDragging ? "bg-blue-100 shadow" : ""
-          )}
-          aria-label="سحب وإفلات"
-        >
-          <GripVertical className={cn("w-5 h-5", isDragging ? "text-blue-600" : "text-gray-400")} />
-        </div>
+        <GripVertical className="w-4 h-4" />
       </div>
-      <div className="pl-10">{children}</div>
+      {children}
     </div>
   )
 }
@@ -73,7 +67,18 @@ interface SortableListProps {
 export function SortableList({ items, onReorder, renderItem, className }: SortableListProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+      // Ignore drag events starting from buttons and interactive elements
+      shouldHandleEvent: (event: Event) => {
+        const target = event.target as HTMLElement;
+        // Check if the target or any parent is a button, has pointer-events-auto, or has drag-ignore class
+        const isButton = target.closest('button, [role="button"], .pointer-events-auto, .drag-ignore');
+        return !isButton;
+      }
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
