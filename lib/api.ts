@@ -204,6 +204,96 @@ export interface ImageUploadResponse {
   image_url: string
 }
 
+// Order interfaces
+export interface Order {
+  id: number
+  user_id: number
+  code: string
+  status: string
+  payment_fees: number | null
+  total_amount: number
+  total_amount_paid: number
+  notes: string | null
+  payment_method: string
+  payment_session_id: string
+  paid_status: {
+    id: number
+    status: string
+    created_at: string
+    updated_at: string
+  } | null
+  metadata: {
+    requestId: string
+    paymentId: string
+    status: string
+    canceled: boolean
+    amount: number
+    currency: string
+    creationDate: string
+    formUrl: string
+    withoutAuthenticate: boolean
+  }
+  order_products: Array<{
+    id: number
+    order_id: number
+    product_id: number
+    quantity: number
+    price: number
+    total: number | null
+    color_id: number | null
+    product?: Product
+  }>
+  payments: Array<{
+    id: number
+    order_id: number
+    payment_method_id: number | null
+    amount: number
+    transaction_id: string | null
+    status: string
+    payment_details: any
+    created_at: string
+    updated_at: string
+  }>
+  user?: {
+    id: number
+    name: string
+    phone: string
+    avatar: string | null
+    status: string
+    role: string
+    language: string
+    created_at: string
+    updated_at: string
+  }
+  statuses: Array<{
+    id: number
+    name: string | null
+    slug: string | null
+    color: string | null
+    is_active: boolean | null
+    created_at: string
+    updated_at: string
+  }>
+  created_at: string
+  updated_at: string
+}
+
+export interface OrdersResponse {
+  success: boolean
+  data: Order[]
+  meta: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+}
+
+export interface OrderResponse {
+  success: boolean
+  data: Order
+}
+
 class ApiService {
   private getAuthHeaders() {
     let token = null
@@ -725,3 +815,73 @@ export const mockCategories: Category[] = [
 //   },
 
 // ]
+
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  let token = null
+  if (typeof window !== "undefined") {
+    token = localStorage.getItem("auth_token")
+  }
+
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  }
+}
+
+// Export the ordersApi as part of the apiService
+export const ordersApi = {
+  async getOrders(params: {
+    page?: number
+    search?: string
+    status?: string
+    payment_status?: string
+    sort_by?: string
+    sort_direction?: string
+  }): Promise<OrdersResponse> {
+    const searchParams = new URLSearchParams()
+    
+    if (params.page) searchParams.append("page", params.page.toString())
+    if (params.search) searchParams.append("search", params.search)
+    if (params.status && params.status !== "all") searchParams.append("status", params.status)
+    if (params.payment_status && params.payment_status !== "all") searchParams.append("payment_status", params.payment_status)
+    if (params.sort_by) searchParams.append("sort_by", params.sort_by)
+    if (params.sort_direction) searchParams.append("sort_direction", params.sort_direction)
+
+    const response = await fetch(`${API_BASE_URL}/admin/orders?${searchParams}`, {
+      headers: getAuthHeaders(),
+    })
+    
+    if (!response.ok) {
+      throw new Error("فشل في تحميل الطلبات")
+    }
+    
+    return response.json()
+  },
+
+  async getOrder(id: string): Promise<OrderResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
+      headers: getAuthHeaders(),
+    })
+    
+    if (!response.ok) {
+      throw new Error("فشل في تحميل تفاصيل الطلب")
+    }
+    
+    return response.json()
+  },
+
+  async updateOrderStatus(id: number, status: string): Promise<OrderResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/orders/${id}/status`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    })
+    
+    if (!response.ok) {
+      throw new Error("فشل في تحديث حالة الطلب")
+    }
+    
+    return response.json()
+  }
+}

@@ -22,6 +22,7 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
+  ShoppingCart,
 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { motion, AnimatePresence } from "framer-motion"
@@ -49,6 +50,7 @@ const navigation: NavigationItem[] = [
       // { name: "MercuryAI", href: "/catalog/mercury-ai" },
     ],
   },
+  { name: "Orders", href: "/orders", icon: ShoppingCart },
   { name: "Home Sections", href: "/home-sections", icon: LayoutDashboard },
   { name: "Featured Sections", href: "/featured-sections", icon: LayoutDashboard },
   { name: "Banners", href: "/banners", icon: LayoutDashboard },
