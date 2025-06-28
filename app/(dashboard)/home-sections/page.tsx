@@ -492,7 +492,7 @@ export default function HomeSectionsPage() {
   )
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <Toaster />
 
       {/* Header */}

@@ -23,6 +23,10 @@ import {
   ChevronDown,
   ChevronRight,
   ShoppingCart,
+  Waypoints, 
+  LayoutTemplate,
+  TextSelect,
+  Pocket
 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { motion, AnimatePresence } from "framer-motion"
@@ -37,23 +41,13 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   // { name: "My Sales", href: "/sales", icon: ShoppingBag },
-  {
-    name: "Catalog",
-    href: "/catalog",
-    icon: Package,
-    children: [
-      { name: "Products", href: "/catalog/products" },
-      { name: "Categories", href: "/catalog/categories" },
-      { name: "Brands", href: "/catalog/brands" },
-      // { name: "Gift Cards", href: "/catalog/gift-cards" },
-      // { name: "Data Import & Export", href: "/catalog/import-export" },
-      // { name: "MercuryAI", href: "/catalog/mercury-ai" },
-    ],
-  },
+  { name: "Products", href: "/catalog/products", icon: Package},
+  { name: "Categories", href: "/catalog/categories", icon: ShoppingBag },
+  { name: "Brands", href: "/catalog/brands", icon: Pocket  },
   { name: "Orders", href: "/orders", icon: ShoppingCart },
-  { name: "Home Sections", href: "/home-sections", icon: LayoutDashboard },
-  { name: "Featured Sections", href: "/featured-sections", icon: LayoutDashboard },
-  { name: "Banners", href: "/banners", icon: LayoutDashboard },
+  { name: "Home Sections", href: "/home-sections",icon: TextSelect  },
+  { name: "Featured Sections", href: "/featured-sections", icon: LayoutTemplate  },
+  { name: "Banners", href: "/banners", icon: Waypoints  },
 
   // { name: "Marketing", href: "/marketing", icon: BarChart3 },
   // { name: "Reports", href: "/reports", icon: BarChart3 },
