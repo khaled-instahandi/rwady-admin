@@ -54,7 +54,7 @@ const useDebounce = (value: string, delay: number) => {
 export default function ProductsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
@@ -81,39 +81,106 @@ export default function ProductsPage() {
     price_min: string
     price_max: string
     stock_status: string
-    sort_by: string
-    sort_direction: "asc" | "desc"
+    sort_field: string
+    sort_order: "asc" | "desc"
     requires_shipping?: boolean
     shipping_type?: string
-  }>({
-    status: "any",
-    category_id: "any",
-    brand_id: "any",
-    price_min: "",
-    price_max: "",
-    stock_status: "any",
-    sort_by: "NAME: A TO Z",
-    sort_direction: "asc",
+  }>(() => {
+    // Initialize filters from URL params
+    const status = searchParams.get('status') || 'any'
+    const category_id = searchParams.get('category_id') || 'any'
+    const brand_id = searchParams.get('brand_id') || 'any'
+    const price_min = searchParams.get('price_min') || ''
+    const price_max = searchParams.get('price_max') || ''
+    const stock_status = searchParams.get('stock_status') || 'any'
+    const sort_field = searchParams.get('sort_field') || 'name'
+    const sort_order = (searchParams.get('sort_order') as "asc" | "desc") || 'asc'
+    const shipping_type = searchParams.get('shipping_type') || 'any'
+    const requires_shipping = searchParams.get('requires_shipping')
+
+    return {
+      status,
+      category_id,
+      brand_id,
+      price_min,
+      price_max,
+      stock_status,
+      sort_field,
+      sort_order,
+      shipping_type,
+      ...(requires_shipping && { requires_shipping: requires_shipping === 'true' })
+    }
   })
 
   // Apply debounce to search input
   const debouncedSearch = useDebounce(searchInput, 500)
 
-  // Function to update URL parameters
-  const updateUrlParams = useCallback((page: number) => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (page > 1) {
-      params.set('page', page.toString())
-    } else {
-      params.delete('page')
+  // Initialize search input from URL
+  useEffect(() => {
+    const searchParam = searchParams.get('search')
+    if (searchParam && searchParam !== searchInput) {
+      setSearchInput(searchParam)
     }
+  }, [searchParams])
+
+  // Function to update URL parameters
+  const updateUrlParams = useCallback((newFilters?: any, page?: number, search?: string) => {
+    const params = new URLSearchParams()
+
+    const currentFilters = newFilters || filters
+    const currentPage = page || 1
+    const currentSearch = search !== undefined ? search : debouncedSearch
+
+    // Add search parameter
+    if (currentSearch) {
+      params.set('search', currentSearch)
+    }
+
+    // Add page parameter
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString())
+    }
+
+    // Add filter parameters
+    if (currentFilters.status && currentFilters.status !== 'any') {
+      params.set('status', currentFilters.status)
+    }
+    if (currentFilters.category_id && currentFilters.category_id !== 'any') {
+      params.set('category_id', currentFilters.category_id)
+    }
+    if (currentFilters.brand_id && currentFilters.brand_id !== 'any') {
+      params.set('brand_id', currentFilters.brand_id)
+    }
+    if (currentFilters.price_min) {
+      params.set('price_min', currentFilters.price_min)
+    }
+    if (currentFilters.price_max) {
+      params.set('price_max', currentFilters.price_max)
+    }
+    if (currentFilters.stock_status && currentFilters.stock_status !== 'any') {
+      params.set('stock_status', currentFilters.stock_status)
+    }
+    // Always add sort parameters
+    if (currentFilters.sort_field) {
+      params.set('sort_field', currentFilters.sort_field)
+    }
+    if (currentFilters.sort_order) {
+      params.set('sort_order', currentFilters.sort_order)
+    }
+    if (currentFilters.requires_shipping !== undefined) {
+      params.set('requires_shipping', currentFilters.requires_shipping.toString())
+    }
+    if (currentFilters.shipping_type && currentFilters.shipping_type !== 'any') {
+      params.set('shipping_type', currentFilters.shipping_type)
+    }
+
     router.push(`?${params.toString()}`, { scroll: false })
-  }, [router, searchParams])
+  }, [router, filters, debouncedSearch])
 
   // Function to update current page and URL
   const updateCurrentPage = useCallback((page: number) => {
     setCurrentPage(page)
-    updateUrlParams(page)
+    updateUrlParams(undefined, page)
   }, [updateUrlParams])
 
   // Sync currentPage with URL parameter changes
@@ -128,52 +195,39 @@ export default function ProductsPage() {
   // Fetch categories for the filter dropdown
   const fetchCategories = useCallback(async () => {
     try {
-      setLoadingFilters(true)
       const response = await apiService.getCategories()
       if (response.success) {
         setCategories(response.data)
       }
     } catch (error) {
       console.error("Error fetching categories:", error)
-    } finally {
-      setLoadingFilters(false)
     }
   }, [])
 
   // Fetch brands for the filter dropdown
   const fetchBrands = useCallback(async () => {
     try {
-      setLoadingFilters(true)
       const response = await apiService.getBrands()
       if (response.success) {
         setBrands(response.data)
       }
     } catch (error) {
       console.error("Error fetching brands:", error)
-    } finally {
-      setLoadingFilters(false)
     }
   }, [])
   useEffect(() => {
-    fetchCategories()
-    fetchBrands()
+    setLoadingFilters(true)
+    Promise.all([fetchCategories(), fetchBrands()])
+      .finally(() => setLoadingFilters(false))
   }, [fetchCategories, fetchBrands])
 
   // Format the sort selection for API parameters
   const getSortParams = useCallback(() => {
-    switch (filters.sort_by) {
-      case "NAME: A TO Z":
-        return { sort_by: "name", sort_direction: "asc" as const }
-      case "NAME: Z TO A":
-        return { sort_by: "name", sort_direction: "desc" as const }
-      case "PRICE: LOW TO HIGH":
-        return { sort_by: "price", sort_direction: "asc" as const }
-      case "PRICE: HIGH TO LOW":
-        return { sort_by: "price", sort_direction: "desc" as const }
-      default:
-        return { sort_by: "name", sort_direction: "asc" as const }
+    return {
+      sort_field: filters.sort_field,
+      sort_order: filters.sort_order
     }
-  }, [filters.sort_by])
+  }, [filters.sort_field, filters.sort_order])
 
   // Count active filters to show on the filter button
   useEffect(() => {
@@ -202,10 +256,15 @@ export default function ProductsPage() {
       if (filters.price_min) filterParams.price_min = filters.price_min
       if (filters.price_max) filterParams.price_max = filters.price_max
       if (filters.stock_status && filters.stock_status !== "any") {
-        if (filters.stock_status === "in_stock") filterParams.stock_status = "in_stock"
-        if (filters.stock_status === "out_of_stock") filterParams.stock_status = "out_of_stock"
-        if (filters.stock_status === "unlimited") filterParams.stock_unlimited = true
-        if (filters.stock_status === "preorder") filterParams.out_of_stock = "show_and_allow_pre_order"
+        if (filters.stock_status === "in_stock") {
+          filterParams.stock_status = "in_stock"
+        } else if (filters.stock_status === "out_of_stock") {
+          filterParams.stock_status = "out_of_stock"
+        } else if (filters.stock_status === "unlimited") {
+          filterParams.stock_unlimited = true
+        } else if (filters.stock_status === "preorder") {
+          filterParams.out_of_stock = "show_and_allow_pre_order"
+        }
       }
 
       if (filters.requires_shipping !== undefined) {
@@ -220,8 +279,8 @@ export default function ProductsPage() {
         page: currentPage,
         limit: 20,
         search: debouncedSearch,
-        sort_by: sortParams.sort_by,
-        sort_direction: sortParams.sort_direction,
+        sort_field: sortParams.sort_field,
+        sort_order: sortParams.sort_order,
         ...filterParams,
       })
 
@@ -255,27 +314,60 @@ export default function ProductsPage() {
 
   const handleSearch = (query: string) => {
     setSearchInput(query)
-    updateCurrentPage(1)
+    updateUrlParams(undefined, 1, query)
+    setCurrentPage(1)
   }
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }))
-    updateCurrentPage(1)
+    const newFilters = { ...filters, [key]: value }
+    setFilters(newFilters)
+    updateUrlParams(newFilters, 1)
+    setCurrentPage(1)
+  }
+
+  // Special handler for filter dialog - doesn't update URL immediately
+  const handleFilterDialogChange = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  // Special handler for requires_shipping in filter dialog
+  const handleShippingFilterChange = (value: string) => {
+    if (value === "true") {
+      setFilters(prev => ({ ...prev, requires_shipping: true }))
+    } else if (value === "false") {
+      setFilters(prev => ({ ...prev, requires_shipping: false }))
+    } else {
+      setFilters(prev => {
+        const newFilters = { ...prev }
+        delete newFilters.requires_shipping
+        return newFilters
+      })
+    }
+  }
+
+  // Apply filters from dialog
+  const applyFilters = () => {
+    updateUrlParams(filters, 1)
+    setCurrentPage(1)
+    setFilterDialogOpen(false)
   }
 
   const clearFilters = () => {
-    setFilters({
+    const newFilters = {
       status: "any",
       category_id: "any",
       brand_id: "any",
       price_min: "",
       price_max: "",
       stock_status: "any",
-      sort_by: "NAME: A TO Z",
-      sort_direction: "asc",
+      sort_field: "name",
+      sort_order: "asc" as const,
       shipping_type: "any"
-    })
-    updateCurrentPage(1)
+    }
+    setFilters(newFilters)
+    updateUrlParams(newFilters, 1)
+    setCurrentPage(1)
+    setSearchInput("")
   }
 
   const handleSelectProduct = (productId: number) => {
@@ -460,15 +552,40 @@ export default function ProductsPage() {
               checked={selectedProducts.length === products.length && products.length > 0}
               onCheckedChange={handleSelectAll}
             />
-            <Select value={filters.sort_by} onValueChange={(value) => handleFilterChange("sort_by", value)}>
+            <Select
+              value={`${filters.sort_field}_${filters.sort_order}`}
+              onValueChange={(value) => {
+                // Handle special case for created_at
+                let field, order
+                if (value.startsWith('created_at_')) {
+                  field = 'created_at'
+                  order = value.replace('created_at_', '')
+                } else {
+                  const lastUnderscoreIndex = value.lastIndexOf('_')
+                  field = value.substring(0, lastUnderscoreIndex)
+                  order = value.substring(lastUnderscoreIndex + 1)
+                }
+                
+                const newFilters = {
+                  ...filters,
+                  sort_field: field,
+                  sort_order: order as "asc" | "desc"
+                }
+                setFilters(newFilters)
+                updateUrlParams(newFilters, 1)
+                setCurrentPage(1)
+              }}
+            >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>
               <SelectContent position="popper" sideOffset={4}>
-                <SelectItem value="NAME: A TO Z">NAME: A TO Z</SelectItem>
-                <SelectItem value="NAME: Z TO A">NAME: Z TO A</SelectItem>
-                <SelectItem value="PRICE: LOW TO HIGH">PRICE: LOW TO HIGH</SelectItem>
-                <SelectItem value="PRICE: HIGH TO LOW">PRICE: HIGH TO LOW</SelectItem>
+                <SelectItem value="name_asc">Name: A to Z</SelectItem>
+                <SelectItem value="name_desc">Name: Z to A</SelectItem>
+                <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                <SelectItem value="created_at_desc">Newest First</SelectItem>
+                <SelectItem value="created_at_asc">Oldest First</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -512,94 +629,97 @@ export default function ProductsPage() {
           products.map((product) => {
             console.log('Product ID for edit link:', product.id); // Debug log
             return (
-            <div key={product.id} className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50">
-              <Checkbox
-                checked={selectedProducts.includes(product.id)}
-                onCheckedChange={() => handleSelectProduct(product.id)}
-              />
+              <div key={product.id} className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50">
+                <Checkbox
+                  checked={selectedProducts.includes(product.id)}
+                  onCheckedChange={() => handleSelectProduct(product.id)}
+                />
 
-              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                {product.media.length > 0 && product.media[0].type === "image" ? (
-                  <img
-                    src={product.media[0].url || "/placeholder.svg?height=64&width=64"}
-                    alt={product.name.en}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Package className="h-8 w-8 text-gray-400" />
-                )}
-              </div>
+                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                  {product.media.length > 0 && product.media[0].type === "image" ? (
+                    <img
+                      src={product.media[0].url || "/placeholder.svg?height=64&width=64"}
+                      alt={product.name.en}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = "/placeholder.svg?height=64&width=64";
+                      }}
+                    />
+                  ) : (
+                    <Package className="h-8 w-8 text-gray-400" />
+                  )}
+                </div>
 
-              <div className="flex-1">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">{product.name.en}</h3>
-                    <p className="text-sm text-gray-500">{product.sku}</p>
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${product.availability ? "bg-green-500" : "bg-gray-400"}`}
-                        />
-                        <span className={`text-sm ${product.availability ? "text-green-600" : "text-gray-500"}`}>
-                          {product.availability ? "Enabled" : "Disabled"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${product.stock > 0 || product.stock_unlimited ? "bg-green-500" : "bg-red-500"}`}
-                        />
-                        <span className="text-sm text-gray-600">
-                          {product.stock_unlimited ? "In stock" : product.stock > 0 ? "In stock" : "Out of stock"}
-                        </span>
-                      </div>
-                      {product.requires_shipping && (
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{product.name.en}</h3>
+                      <p className="text-sm text-gray-500">{product.sku}</p>
+                      <div className="flex items-center gap-4 mt-2">
                         <div className="flex items-center gap-2">
-                          <Package className="h-3 w-3 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {product.shipping_type === "free_shipping"
-                              ? "Free shipping"
-                              : product.shipping_type === "fixed_shipping"
-                                ? `Fixed shipping (${product.shipping_rate_single?.toLocaleString()} IQD)`
-                                : "Default shipping"}
+                          <div
+                            className={`w-2 h-2 rounded-full ${product.availability ? "bg-green-500" : "bg-gray-400"}`}
+                          />
+                          <span className={`text-sm ${product.availability ? "text-green-600" : "text-gray-500"}`}>
+                            {product.availability ? "Enabled" : "Disabled"}
                           </span>
                         </div>
-                      )}
-                      {product.out_of_stock === "show_and_allow_pre_order" && product.stock <= 0 && !product.stock_unlimited && (
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-orange-500" />
-                          <span className="text-sm text-orange-600">Pre-order enabled</span>
+                          <div
+                            className={`w-2 h-2 rounded-full ${product.stock > 0 || product.stock_unlimited ? "bg-green-500" : "bg-red-500"}`}
+                          />
+                          <span className="text-sm text-gray-600">
+                            {product.stock_unlimited ? "In stock" : product.stock > 0 ? "In stock" : "Out of stock"}
+                          </span>
                         </div>
-                      )}
+                        {product.requires_shipping && (
+                          <div className="flex items-center gap-2">
+                            <Package className="h-3 w-3 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {product.shipping_type === "free_shipping"
+                                ? "Free shipping"
+                                : product.shipping_type === "fixed_shipping"
+                                  ? `Fixed shipping (${product.shipping_rate_single?.toLocaleString()} IQD)`
+                                  : "Default shipping"}
+                            </span>
+                          </div>
+                        )}
+                        {product.out_of_stock === "show_and_allow_pre_order" && product.stock <= 0 && !product.stock_unlimited && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-orange-500" />
+                            <span className="text-sm text-orange-600">Pre-order enabled</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="text-right">
-                    <div className="text-lg font-semibold text-gray-900">{formatPrice(product.price)}</div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            Edit Product
-                            <ChevronDown className="h-4 w-4 ml-2" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" forceMount>
-                          <DropdownMenuItem asChild>
-                            <Link 
-                              href={`/catalog/products/${product.id}`}
-                              onClick={(e) => {
-                                console.log('Navigating to:', `/catalog/products/${product.id}`);
-                                console.log('Product ID:', product.id);
-                                // Test manual navigation
-                                // e.preventDefault();
-                                // window.location.href = `/catalog/products/${product.id}`;
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                          {/* <DropdownMenuItem>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold text-gray-900">{formatPrice(product.price)}</div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Edit Product
+                              <ChevronDown className="h-4 w-4 ml-2" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" forceMount>
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={`/catalog/products/${product.id}`}
+                                onClick={(e) => {
+                                  console.log('Navigating to:', `/catalog/products/${product.id}`);
+                                  console.log('Product ID:', product.id);
+                                  // Test manual navigation
+                                  // e.preventDefault();
+                                  // window.location.href = `/catalog/products/${product.id}`;
+                                }}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </Link>
+                            </DropdownMenuItem>
+                            {/* <DropdownMenuItem>
                             <Copy className="h-4 w-4 mr-2" />
                             Duplicate
                           </DropdownMenuItem>
@@ -607,23 +727,23 @@ export default function ProductsPage() {
                             <Eye className="h-4 w-4 mr-2" />
                             Preview
                           </DropdownMenuItem> */}
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => {
-                              setProductToDelete(product)
-                              setDeleteDialogOpen(true)
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => {
+                                setProductToDelete(product)
+                                setDeleteDialogOpen(true)
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
             );
           })
         )}
@@ -727,7 +847,7 @@ export default function ProductsPage() {
               <label className="text-right text-sm font-medium col-span-1">Status</label>
               <Select
                 value={filters.status}
-                onValueChange={(value) => handleFilterChange("status", value)}
+                onValueChange={(value) => handleFilterDialogChange("status", value)}
               // className="col-span-3"
               >
                 <SelectTrigger>
@@ -745,7 +865,7 @@ export default function ProductsPage() {
               <label className="text-right text-sm font-medium col-span-1">Category</label>
               <Select
                 value={filters.category_id}
-                onValueChange={(value) => handleFilterChange("category_id", value)}
+                onValueChange={(value) => handleFilterDialogChange("category_id", value)}
               // className="col-span-3"
               >
                 <SelectTrigger>
@@ -772,7 +892,7 @@ export default function ProductsPage() {
               <label className="text-right text-sm font-medium col-span-1">Brand</label>
               <Select
                 value={filters.brand_id}
-                onValueChange={(value) => handleFilterChange("brand_id", value)}
+                onValueChange={(value) => handleFilterDialogChange("brand_id", value)}
               // className="col-span-3"
               >
                 <SelectTrigger>
@@ -802,7 +922,7 @@ export default function ProductsPage() {
                   type="number"
                   placeholder="Min"
                   value={filters.price_min}
-                  onChange={(e) => handleFilterChange("price_min", e.target.value)}
+                  onChange={(e) => handleFilterDialogChange("price_min", e.target.value)}
                   className="flex-1"
                 />
                 <span>to</span>
@@ -810,7 +930,7 @@ export default function ProductsPage() {
                   type="number"
                   placeholder="Max"
                   value={filters.price_max}
-                  onChange={(e) => handleFilterChange("price_max", e.target.value)}
+                  onChange={(e) => handleFilterDialogChange("price_max", e.target.value)}
                   className="flex-1"
                 />
               </div>
@@ -820,7 +940,7 @@ export default function ProductsPage() {
               <label className="text-right text-sm font-medium col-span-1">Stock</label>
               <Select
                 value={filters.stock_status}
-                onValueChange={(value) => handleFilterChange("stock_status", value)}
+                onValueChange={(value) => handleFilterDialogChange("stock_status", value)}
               // className="col-span-3"
               >
                 <SelectTrigger>
@@ -840,19 +960,7 @@ export default function ProductsPage() {
               <label className="text-right text-sm font-medium col-span-1">Shipping</label>
               <Select
                 value={filters.requires_shipping !== undefined ? (filters.requires_shipping ? "true" : "false") : "any"}
-                onValueChange={(value) => {
-                  if (value === "true") {
-                    setFilters(prev => ({ ...prev, requires_shipping: true }));
-                  } else if (value === "false") {
-                    setFilters(prev => ({ ...prev, requires_shipping: false }));
-                  } else {
-                    setFilters(prev => {
-                      const newFilters = { ...prev };
-                      delete newFilters.requires_shipping;
-                      return newFilters;
-                    });
-                  }
-                }}
+                onValueChange={handleShippingFilterChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Shipping requirement" />
@@ -869,7 +977,7 @@ export default function ProductsPage() {
               <label className="text-right text-sm font-medium col-span-1">Shipping Type</label>
               <Select
                 value={filters.shipping_type || "any"}
-                onValueChange={(value) => handleFilterChange("shipping_type", value)}
+                onValueChange={(value) => handleFilterDialogChange("shipping_type", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Any shipping type" />
@@ -885,13 +993,13 @@ export default function ProductsPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={clearFilters}>
-              Clear Filters
-            </Button>
-            <Button onClick={() => {
-              fetchProducts()
+            <Button variant="outline" onClick={() => {
+              clearFilters()
               setFilterDialogOpen(false)
             }}>
+              Clear Filters
+            </Button>
+            <Button onClick={applyFilters}>
               Apply Filters
             </Button>
           </DialogFooter>

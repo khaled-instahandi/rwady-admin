@@ -191,12 +191,19 @@ export interface PaginationParams {
   page?: number
   limit?: number
   search?: string
-  sort_by?: string
-  category_id?: number
-  sort_direction?: "asc" | "desc"
+  sort_field?: string
+  sort_order?: "asc" | "desc"
+  category_id?: number | string
+  brand_id?: number | string
   availability?: any
-  type?: any,
-
+  type?: any
+  price_min?: number | string
+  price_max?: number | string
+  stock_status?: string
+  stock_unlimited?: boolean
+  out_of_stock?: string
+  requires_shipping?: boolean
+  shipping_type?: string
 }
 
 export interface ImageUploadResponse {
@@ -326,8 +333,8 @@ class ApiService {
     if (params.page) queryParams.append("page", params.page.toString())
     if (params.limit) queryParams.append("limit", params.limit.toString())
     if (params.search) queryParams.append("search", params.search)
-    if (params.sort_by) queryParams.append("sort_by", params.sort_by)
-    if (params.sort_direction) queryParams.append("sort_direction", params.sort_direction)
+    if (params.sort_field) queryParams.append("sort_field", params.sort_field)
+    if (params.sort_order) queryParams.append("sort_order", params.sort_order)
     if (params.availability !== undefined && params.availability !== null) queryParams.append("availability", params.availability.toString())
 
     // if (params.filters) {
@@ -337,6 +344,32 @@ class ApiService {
     //     }
     //   })
     // }
+    // stock_status ,stock_unlimited,out_of_stock,requires_shipping,shipping_type
+    if (params.stock_status !== undefined && params.stock_status !== null) {
+      queryParams.append("stock_status", params.stock_status.toString())
+    }
+    if (params.stock_unlimited !== undefined && params.stock_unlimited !== null) {
+      queryParams.append("stock_unlimited", params.stock_unlimited.toString())
+    }
+    if (params.out_of_stock !== undefined && params.out_of_stock !== null) {
+      queryParams.append("out_of_stock", params.out_of_stock.toString())
+    }
+    if (params.requires_shipping !== undefined && params.requires_shipping !== null) {
+      queryParams.append("requires_shipping", params.requires_shipping.toString())
+    }
+    if (params.shipping_type !== undefined && params.shipping_type !== null) {
+      queryParams.append("shipping_type", params.shipping_type.toString())
+    }
+    if (params.brand_id !== undefined && params.brand_id !== null) {
+      queryParams.append("brand_id", params.brand_id.toString())
+    }
+    if (params.price_min !== undefined && params.price_min !== null) {
+      queryParams.append("price_min", params.price_min.toString())
+    }
+    if (params.price_max !== undefined && params.price_max !== null) {
+      queryParams.append("price_max", params.price_max.toString())
+    }
+
     if (params.category_id !== undefined && params.category_id !== null) {
       queryParams.append("category_id", params.category_id.toString())
     }
@@ -834,28 +867,28 @@ export const ordersApi = {
   async getOrders(params: {
     page?: number
     search?: string
+    sort_field?: string
+    sort_order?: "asc" | "desc"
     status?: string
     payment_status?: string
-    sort_by?: string
-    sort_direction?: string
   }): Promise<OrdersResponse> {
     const searchParams = new URLSearchParams()
-    
+
     if (params.page) searchParams.append("page", params.page.toString())
     if (params.search) searchParams.append("search", params.search)
     if (params.status && params.status !== "all") searchParams.append("status", params.status)
     if (params.payment_status && params.payment_status !== "all") searchParams.append("payment_status", params.payment_status)
-    if (params.sort_by) searchParams.append("sort_by", params.sort_by)
-    if (params.sort_direction) searchParams.append("sort_direction", params.sort_direction)
+    if (params.sort_field) searchParams.append("sort_field", params.sort_field)
+    if (params.sort_order) searchParams.append("sort_order", params.sort_order)
 
     const response = await fetch(`${API_BASE_URL}/admin/orders?${searchParams}`, {
       headers: getAuthHeaders(),
     })
-    
+
     if (!response.ok) {
       throw new Error("فشل في تحميل الطلبات")
     }
-    
+
     return response.json()
   },
 
@@ -863,11 +896,11 @@ export const ordersApi = {
     const response = await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
       headers: getAuthHeaders(),
     })
-    
+
     if (!response.ok) {
       throw new Error("فشل في تحميل تفاصيل الطلب")
     }
-    
+
     return response.json()
   },
 
@@ -877,11 +910,11 @@ export const ordersApi = {
       headers: getAuthHeaders(),
       body: JSON.stringify({ status }),
     })
-    
+
     if (!response.ok) {
       throw new Error("فشل في تحديث حالة الطلب")
     }
-    
+
     return response.json()
   }
 }
