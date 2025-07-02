@@ -83,7 +83,7 @@ interface ProductFormData {
   shipping_rate_single?: number | null
   shipping_rate_multi?: number | null
   is_recommended: boolean
-  ribbon_text?: { ar: string; en: string | null } | null
+  ribbon_text?: { ar: string; en: string } | null
   ribbon_color?: string | null
   categories?: number[]
   brands?: number[]
@@ -163,6 +163,8 @@ export default function ProductEditPage() {
     shipping_rate_single: 0,
     shipping_rate_multi: 0,
     is_recommended: false,
+    ribbon_text: null,
+    ribbon_color: null,
   })
 
   const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null)
@@ -224,17 +226,19 @@ export default function ProductEditPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchRelatedQuery.trim() === "") {
-        setSearchResults([])
+        // When clearing search, show all available products
+        setSearchResults(allAvailableProducts.slice(0, 50))
       } else {
-        const filteredProducts = relatedProducts.filter((product) =>
+        // Search in the loaded products
+        const filteredProducts = allAvailableProducts.filter((product) =>
           product.name.toLowerCase().includes(searchRelatedQuery.toLowerCase())
         )
-        setSearchResults(filteredProducts)
+        setSearchResults(filteredProducts.slice(0, 50))
       }
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchRelatedQuery, relatedProducts])
+  }, [searchRelatedQuery, allAvailableProducts])
 
   const loadProduct = async () => {
     if (!productId) return
@@ -332,8 +336,11 @@ export default function ProductEditPage() {
           shipping_rate_single: product.shipping_rate_single,
           shipping_rate_multi: product.shipping_rate_multi,
           is_recommended: product.is_recommended,
-          ribbon_text: product.ribbon_text || { ar: "", en: "" },
-          ribbon_color: product.ribbon_color,
+          ribbon_text: product.ribbon_text ? {
+            ar: product.ribbon_text.ar || "",
+            en: product.ribbon_text.en || ""
+          } : null,
+          ribbon_color: product.ribbon_color || null,
           categories: (product as any).categories?.map((cat: Category) => cat.id),
           brands: (product as any).brands?.map((brand: Brand) => brand.id) || [],
           related_category_id: product.related_category_id,
@@ -552,7 +559,7 @@ export default function ProductEditPage() {
   // Search for products for related products section
   const searchProducts = async (query: string) => {
     if (!query || query.length < 2) {
-      // If no search query, show first 50 products from all available products
+      // If no search query, show all available products (first 50)
       setSearchResults(allAvailableProducts.slice(0, 50))
       return
     }
@@ -563,9 +570,12 @@ export default function ProductEditPage() {
         product.name.toLowerCase().includes(query.toLowerCase())
       )
 
-      // If we have good local results, use them
-      if (localResults.length >= 10) {
+      // Always use local results if available
+      if (localResults.length > 0) {
         setSearchResults(localResults.slice(0, 50))
+      } else if (allAvailableProducts.length > 0) {
+        // If no local matches but we have products loaded, show empty search result
+        setSearchResults([])
       } else {
         // Otherwise, search via API for more comprehensive results
         const response = await apiService.getProducts({ search: query, limit: 50 })
@@ -577,7 +587,8 @@ export default function ProductEditPage() {
               id: product.id,
               name: product.name.ar || product.name.en || "Unknown",
               price: product.price,
-              image: product.media?.find((m: any) => m.type === "image")?.url || "/placeholder.svg"
+              image: product.media?.find((m: any) => m.type === "image")?.url || "/placeholder.svg",
+              media: product.media
             }));
 
           setSearchResults(filteredResults)
@@ -1149,8 +1160,8 @@ export default function ProductEditPage() {
         // Required fields with proper formatting
         name: formData.name,
         description: formData.description,
-        ribbon_text: formData.ribbon_text || { ar: "", en: "" },
-        ribbon_color: formData.ribbon_color || "#ffffff",
+        ribbon_text: formData.ribbon_text,
+        ribbon_color: formData.ribbon_color,
         is_recommended: formData.is_recommended || false,
 
         // Price information
@@ -1247,15 +1258,14 @@ export default function ProductEditPage() {
             id: product.id,
             name: product.name.ar || product.name.en || "Unknown",
             price: product.price,
-            image: product.media?.find((m: any) => m.type === "image")?.url || "/placeholder.svg"
+            image: product.media?.find((m: any) => m.type === "image")?.url || "/placeholder.svg",
+            media: product.media // Include media for consistency
           }));
 
         setAllAvailableProducts(formattedProducts)
 
-        // If no search query, show first 50 products as initial results
-        if (!searchRelatedQuery) {
-          setSearchResults(formattedProducts.slice(0, 50))
-        }
+        // Always show products initially so users can see what's available
+        setSearchResults(formattedProducts.slice(0, 50))
 
         console.log(`Loaded ${formattedProducts.length} products from API`)
       }
@@ -1282,6 +1292,34 @@ export default function ProductEditPage() {
     )
   }
 
+  function getYoutubeEmbedUrl(videoUrl: string): string | undefined {
+    if (!videoUrl) return undefined;
+
+    // Extract video ID from different YouTube URL formats
+    let videoId: string | null = null;
+
+    // Format: https://www.youtube.com/watch?v=VIDEO_ID
+    if (videoUrl.includes('youtube.com/watch')) {
+      const urlParams = new URLSearchParams(new URL(videoUrl).search);
+      videoId = urlParams.get('v');
+    }
+    // Format: https://youtu.be/VIDEO_ID
+    else if (videoUrl.includes('youtu.be/')) {
+      videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0];
+    }
+    // Format: https://www.youtube.com/embed/VIDEO_ID (already an embed URL)
+    else if (videoUrl.includes('youtube.com/embed/')) {
+      return videoUrl; // Already in embed format
+    }
+
+    // Return embed URL if video ID was found
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    // Return undefined for non-YouTube URLs or invalid formats
+    return undefined;
+  }
   return (
     <div className="space-y-6">
       {/* Unsaved Changes Notification */}
@@ -1605,6 +1643,123 @@ export default function ProductEditPage() {
 
                   <Separator />
 
+                  {/* Ribbon Section */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-base font-medium">Product Ribbon</Label>
+                      <p className="text-sm text-gray-600 mt-1">Add a ribbon badge to highlight your product</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="ribbon-text-ar">Ribbon Text (Arabic)</Label>
+                        <Input
+                          id="ribbon-text-ar"
+                          value={formData.ribbon_text?.ar || ""}
+                          onChange={(e) => {
+                            const currentRibbon = formData.ribbon_text || { ar: "", en: "" };
+                            handleInputChange("ribbon_text", { ...currentRibbon, ar: e.target.value });
+                          }}
+                          placeholder="For example: Sale"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ribbon-text-en">Ribbon Text (English)</Label>
+                        <Input
+                          id="ribbon-text-en"
+                          value={formData.ribbon_text?.en || ""}
+                          onChange={(e) => {
+                            const currentRibbon = formData.ribbon_text || { ar: "", en: "" };
+                            handleInputChange("ribbon_text", { ...currentRibbon, en: e.target.value });
+                          }}
+                          placeholder="For example: Sale"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="ribbon-color">Ribbon Color</Label>
+                      <div className="flex items-center gap-4 mt-2">
+                        {/* Predefined Colors */}
+                        <div className="flex items-center gap-2">
+                          {[
+                            { color: "#ff8c00", name: "Orange" },
+                            { color: "#dc3545", name: "Red" },
+                            { color: "#4169e1", name: "Blue" },
+                            { color: "#20c997", name: "Teal" },
+                            { color: "#6f42c1", name: "Purple" }
+                          ].map((colorOption) => (
+                            <button
+                              key={colorOption.color}
+                              type="button"
+                              className={`w-10 h-10 rounded border-2 transition-all ${formData.ribbon_color === colorOption.color
+                                ? "border-gray-900 scale-110"
+                                : "border-gray-300 hover:border-gray-500"
+                                }`}
+                              style={{ backgroundColor: colorOption.color }}
+                              onClick={() => handleInputChange("ribbon_color", colorOption.color)}
+                              title={colorOption.name}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Custom Color Picker */}
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={formData.ribbon_color || "#ff8c00"}
+                            onChange={(e) => handleInputChange("ribbon_color", e.target.value)}
+                            className="w-16 h-10 p-1 border rounded"
+                          />
+                          <Input
+                            type="text"
+                            value={formData.ribbon_color || ""}
+                            onChange={(e) => handleInputChange("ribbon_color", e.target.value)}
+                            placeholder="#000000"
+                            className="w-24 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ribbon Preview */}
+                    {(formData.ribbon_text?.ar || formData.ribbon_text?.en) && formData.ribbon_color && (
+                      <div className="mt-4">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">Ribbon Preview</Label>
+                        <div className="relative inline-block">
+                          <div className="w-32 h-32 bg-gray-100 border rounded-lg flex items-center justify-center">
+                            <div className="w-20 h-20 bg-gray-200 rounded border"></div>
+                          </div>
+                          <div
+                            className="absolute top-2 right-2 px-2 py-1 text-white text-xs font-semibold rounded transform rotate-12 shadow-md"
+                            style={{ backgroundColor: formData.ribbon_color }}
+                          >
+                            {formData.ribbon_text?.ar || formData.ribbon_text?.en || "Sale"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remove Ribbon Button */}
+                    {(formData.ribbon_text?.ar || formData.ribbon_text?.en || formData.ribbon_color) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 border-red-300 hover:bg-red-50"
+                        onClick={() => {
+                          handleInputChange("ribbon_text", null);
+                          handleInputChange("ribbon_color", null);
+                        }}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Remove this ribbon
+                      </Button>
+                    )}
+                  </div>
+
+                  <Separator />
+
                   {/* Categories */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -1771,260 +1926,303 @@ export default function ProductEditPage() {
                   <CardTitle>Related Products</CardTitle>
                   <p className="text-sm text-gray-600">
                     Show the "You may also like" section on the product page to promote other products and increase
-                    sales. You can pick related products manually or set up automatic recommendations from a category.
+                    sales. You can pick related products manually and/or set up automatic recommendations from a category.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Recommendation Type Selection */}
+                  {/* Category-based Recommendations */}
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="random-products"
-                        name="recommendation-type"
-                        checked={!!formData.related_category_id}
-                        onChange={() => {
-                          // If switching to random products, set default values
-                          if (!formData.related_category_id) {
-                            const firstCategoryId = availableCategories.length > 0 ? availableCategories[0].id : null;
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base font-medium">Category-based Recommendations</Label>
+                        <p className="text-sm text-gray-500 mt-1">Automatically show random products from a category</p>
+                      </div>
+                      <Switch
+                        checked={formData.related_category_id !== null && formData.related_category_id !== undefined}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            // Enable category recommendations with default settings
+                            const firstCategoryId = availableCategories.length > 0 ? availableCategories[0].id : 0;
                             handleInputChange("related_category_id", firstCategoryId);
-                            handleInputChange("related_category_limit", 5);
-                            // Clear manual selections when switching to random
-                            handleInputChange("related_products", []);
+                            handleInputChange("related_category_limit", 5); // Default to 5 products
+                          } else {
+                            // Disable category recommendations
+                            handleInputChange("related_category_id", null);
+                            handleInputChange("related_category_limit", undefined);
                           }
                         }}
                       />
-                      <Label htmlFor="random-products">
-                        Random products from a category
-                      </Label>
                     </div>
 
-                    {formData.related_category_id !== undefined && formData.related_category_id !== null && (
-                      <div className="ml-6 space-y-4 border-l-2 border-gray-200 pl-4">
+                    {formData.related_category_id !== null && formData.related_category_id !== undefined && (
+                      <div className="ml-0 space-y-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
                         <div>
                           <Label htmlFor="category-select">Select Category</Label>
                           <select
                             id="category-select"
-                            className="w-full p-2 border rounded-md"
-                            value={formData.related_category_id || ''}
-                            onChange={(e) => handleInputChange("related_category_id", Number(e.target.value) || null)}
+                            className="w-full p-2 border rounded-md bg-white"
+                            value={formData.related_category_id}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "0") {
+                                handleInputChange("related_category_id", 0);
+                              } else if (value === "") {
+                                handleInputChange("related_category_id", null);
+                              } else {
+                                handleInputChange("related_category_id", Number(value));
+                              }
+                            }}
                           >
-                            <option value="">Select a category</option>
+                            <option value="">No category selected</option>
+                            <option value="0">All categories (random from any)</option>
                             {availableCategories.map(category => (
                               <option key={category.id} value={category.id}>
                                 {category.name}
                               </option>
                             ))}
                           </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Choose "All categories" to show random products from any category, or select a specific category
+                          </p>
                         </div>
 
                         <div>
                           <Label htmlFor="limit-select">Number of Products</Label>
-                          <select
+                          <input
+                            type="number"
                             id="limit-select"
-                            className="w-full p-2 border rounded-md"
+                            className="w-full p-2 border rounded-md bg-white"
                             value={formData.related_category_limit || 5}
-                            onChange={(e) => handleInputChange("related_category_limit", Number(e.target.value))}
-                          >
-                            {[3, 4, 5, 6, 8, 10, 12].map(num => (
-                              <option key={num} value={num}>{num} products</option>
-                            ))}
-                          </select>
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+                              // if (value >= 1 && value <= 50) {
+                              handleInputChange("related_category_limit", value);
+                              // }
+                            }}
+                            min="1"
+                            // max="50"
+                            placeholder="5"
+                          />
+
                         </div>
                       </div>
                     )}
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="manual-selection"
-                        name="recommendation-type"
-                        checked={!formData.related_category_id}
-                        onChange={() => {
-                          // Clear category-based recommendation settings
-                          handleInputChange("related_category_id", null);
-                          handleInputChange("related_category_limit", undefined);
-                        }}
-                      />
-                      <Label htmlFor="manual-selection">
-                        Manually select products
-                      </Label>
-                    </div>
                   </div>
 
+                  <Separator />
+
                   {/* Manual Product Selection */}
-                  {!formData.related_category_id && (
-                    <>
-                      <div>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                          <Input
-                            placeholder="Search products to add..."
-                            className="pl-10 pr-10"
-                            value={searchRelatedQuery}
-                            onChange={(e) => setSearchRelatedQuery(e.target.value)}
-                          />
-                          {searchRelatedQuery && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-                              onClick={() => {
-                                setSearchRelatedQuery("")
-                                setSearchResults(allAvailableProducts.slice(0, 50))
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                        <div className="mt-2 flex gap-2">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-base font-medium">Manual Product Selection</Label>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Choose specific products to show. These will appear in addition to category-based recommendations.
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <Input
+                          placeholder="Search products to add..."
+                          className="pl-10 pr-10"
+                          value={searchRelatedQuery}
+                          onChange={(e) => setSearchRelatedQuery(e.target.value)}
+                        />
+                        {searchRelatedQuery && (
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
                             onClick={() => {
                               setSearchRelatedQuery("")
                               setSearchResults(allAvailableProducts.slice(0, 50))
                             }}
-                            disabled={loadingProducts}
                           >
-                            Show All Products
+                            <X className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              loadAllProducts()
-                            }}
-                            disabled={loadingProducts}
-                          >
-                            {loadingProducts ? "Loading..." : "Refresh"}
-                          </Button>
-                        </div>
+                        )}
                       </div>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSearchRelatedQuery("")
+                            setSearchResults(allAvailableProducts.slice(0, 50))
+                          }}
+                          disabled={loadingProducts}
+                        >
+                          Show All Products
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            loadAllProducts()
+                          }}
+                          disabled={loadingProducts}
+                        >
+                          {loadingProducts ? "Loading..." : "Refresh"}
+                        </Button>
+                      </div>
+                    </div>
 
-                      <div className="space-y-2">
-                        {/* Display all available products with checkboxes */}
-                        <div className="max-h-64 overflow-y-auto border rounded-lg">
-                          <div className="p-3 border-b bg-gray-50">
-                            <div className="flex items-center justify-between">
-                              <Label className="font-medium">Available Products</Label>
-                              <span className="text-sm text-gray-500">
-                                {loadingProducts ? (
-                                  "Loading..."
-                                ) : (
-                                  `Showing ${searchResults.length} of ${allAvailableProducts.length} products`
-                                )}
-                              </span>
-                            </div>
+                    <div className="space-y-2">
+                      {/* Selected products summary - Always visible when there are selections */}
+                      {relatedProducts.length > 0 && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="font-medium text-blue-900">
+                              Selected Manual Products ({relatedProducts.length})
+                            </Label>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setRelatedProducts([]);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  related_products: []
+                                }));
+                                toast({
+                                  title: "Success",
+                                  description: "Cleared all related products",
+                                });
+                              }}
+                              className="text-red-600 border-red-300 hover:bg-red-50"
+                            >
+                              Clear All
+                            </Button>
                           </div>
+                          <div className="flex flex-wrap gap-2">
+                            {relatedProducts.map((product) => (
+                              <div key={product.id} className="flex items-center gap-2 bg-white border rounded-full px-3 py-1 text-sm">
+                                <span>{product.name}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 hover:bg-red-100"
+                                  onClick={() => removeRelatedProduct(product.id)}
+                                >
+                                  <X className="h-3 w-3 text-red-500" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                          {loadingProducts ? (
-                            <div className="text-center py-8 text-gray-500">
-                              <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                              <p>Loading products...</p>
-                            </div>
-                          ) : searchResults.length > 0 ? (
-                            searchResults.map((product) => {
-                              const isSelected = relatedProducts.some(p => p.id === product.id);
-                              return (
-                                <div key={product.id} className="flex items-center p-3 border-b hover:bg-gray-50">
-                                  <input
-                                    type="checkbox"
-                                    id={`product-${product.id}`}
-                                    checked={isSelected}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        addRelatedProduct(product);
-                                      } else {
-                                        removeRelatedProduct(product.id);
-                                      }
-                                    }}
-                                    className="mr-3"
-                                  />
-                                  <img
-                                    src={product.media?.[0]?.url}
-                                    alt={product.name}
-                                    className="w-10 h-10 rounded object-cover mr-3"
-                                  />
-                                  <div className="flex-1">
-                                    <Label
-                                      htmlFor={`product-${product.id}`}
-                                      className="font-medium cursor-pointer"
-                                    >
-                                      {product.name}
-                                    </Label>
-                                    <p className="text-sm text-gray-500">{product.price} IQD</p>
-                                    <p className="text-xs text-gray-400">ID: {product.id}</p>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : searchRelatedQuery ? (
-                            <div className="text-center py-4 text-gray-500">
-                              <Search className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                              <p>No products found for "{searchRelatedQuery}"</p>
-                              <p className="text-xs">Try searching with different keywords</p>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-gray-500">
-                              <Search className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                              <p className="font-medium">Ready to browse products</p>
-                              <p className="text-sm">Click "Show All Products" to see available products</p>
-                              <p className="text-sm">or search for specific products by name</p>
-                              {allAvailableProducts.length > 0 && (
-                                <p className="text-xs mt-2 text-blue-600">{allAvailableProducts.length} products loaded from API</p>
+                      {/* Display all available products with checkboxes - Always visible */}
+                      <div className="max-h-64 overflow-y-auto border rounded-lg">
+                        <div className="p-3 border-b bg-gray-50">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-medium">Available Products</Label>
+                            <span className="text-sm text-gray-500">
+                              {loadingProducts ? (
+                                "Loading..."
+                              ) : (
+                                `Showing ${searchResults.length} of ${allAvailableProducts.length} products`
                               )}
-                            </div>
-                          )}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Selected products summary */}
-                        {relatedProducts.length > 0 && (
-                          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
-                              <Label className="font-medium text-blue-900">
-                                Selected Related Products ({relatedProducts.length})
-                              </Label>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setRelatedProducts([]);
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    related_products: []
-                                  }));
-                                  toast({
-                                    title: "Success",
-                                    description: "Cleared all related products",
-                                  });
-                                }}
-                                className="text-red-600 border-red-300 hover:bg-red-50"
-                              >
-                                Clear All
-                              </Button>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {relatedProducts.map((product) => (
-                                <div key={product.id} className="flex items-center gap-2 bg-white border rounded-full px-3 py-1 text-sm">
-                                  <span>{product.name}</span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-4 w-4 p-0 hover:bg-red-100"
-                                    onClick={() => removeRelatedProduct(product.id)}
+                        {loadingProducts ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                            <p>Loading products...</p>
+                          </div>
+                        ) : searchResults.length > 0 ? (
+                          searchResults.map((product) => {
+                            const isSelected = relatedProducts.some(p => p.id === product.id);
+                            return (
+                              <div key={product.id} className="flex items-center p-3 border-b hover:bg-gray-50">
+                                <input
+                                  type="checkbox"
+                                  id={`product-${product.id}`}
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      addRelatedProduct(product);
+                                    } else {
+                                      removeRelatedProduct(product.id);
+                                    }
+                                  }}
+                                  className="mr-3"
+                                />
+                                <img
+                                  src={product.media?.[0]?.url || "/placeholder.svg"}
+                                  alt={product.name}
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/placeholder.svg"; // Fallback image
+                                  }
+                                  }
+                                  loading="lazy"
+                                  // width={40}
+                                  // height={40}
+                                  className="w-10 h-10 rounded object-cover mr-3"
+                                />
+                                <div className="flex-1">
+                                  <Label
+                                    htmlFor={`product-${product.id}`}
+                                    className="font-medium cursor-pointer"
                                   >
-                                    <X className="h-3 w-3 text-red-500" />
-                                  </Button>
+                                    {product.name}
+                                  </Label>
+                                  <p className="text-sm text-gray-500">{product.price} IQD</p>
+                                  <p className="text-xs text-gray-400">ID: {product.id}</p>
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                            );
+                          })
+                        ) : searchRelatedQuery ? (
+                          <div className="text-center py-4 text-gray-500">
+                            <Search className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p>No products found for "{searchRelatedQuery}"</p>
+                            <p className="text-xs">Try searching with different keywords</p>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Search className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                            <p className="font-medium">Ready to browse products</p>
+                            <p className="text-sm">Click "Show All Products" to see available products</p>
+                            <p className="text-sm">or search for specific products by name</p>
+                            {allAvailableProducts.length > 0 && (
+                              <p className="text-xs mt-2 text-blue-600">{allAvailableProducts.length} products loaded from API</p>
+                            )}
                           </div>
                         )}
                       </div>
-                    </>
-                  )}
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  {(formData.related_category_id !== null && formData.related_category_id !== undefined) || relatedProducts.length > 0 ? (
+                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <Label className="font-medium text-green-900 flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        Related Products Summary
+                      </Label>
+                      <div className="mt-2 text-sm text-green-800">
+                        {formData.related_category_id !== null && formData.related_category_id !== undefined && (
+                          <p>
+                            • Category-based: {formData.related_category_limit || 5} random products from{" "}
+                            {formData.related_category_id === 0
+                              ? "all categories"
+                              : availableCategories.find(c => c.id === formData.related_category_id)?.name || "selected category"
+                            }
+                          </p>
+                        )}
+                        {relatedProducts.length > 0 && (
+                          <p>• Manual selection: {relatedProducts.length} specific products</p>
+                        )}
+                        <p className="text-xs mt-1 text-green-600">
+                          Both types will be shown together on the product page
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -2535,37 +2733,9 @@ export default function ProductEditPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Button variant="link" className="text-blue-600 p-0 h-auto">
-                  Bulk discount pricing →
-                </Button>
-                <p className="text-sm text-gray-600">
-                  Encourage customers to buy larger quantities with volume discounts.
-                </p>
-              </div>
 
-              <div className="space-y-2">
-                <Button variant="link" className="text-blue-600 p-0 h-auto">
-                  Enable "Pay what you want" pricing →
-                </Button>
-                <p className="text-sm text-gray-600">
-                  Let customers define their own price for the product or donation amount.
-                </p>
-              </div>
 
-              <div className="space-y-2">
-                <Button variant="link" className="text-blue-600 p-0 h-auto">
-                  Sell as subscription →
-                </Button>
-                <p className="text-sm text-gray-600">
-                  Allow customers to purchase this product and be charged automatically on a regular schedule without
-                  having to place a new order each time.
-                </p>
-              </div>
 
-              <Button variant="link" className="text-blue-600 p-0 h-auto">
-                Hide pricing options
-              </Button>
             </CardContent>
           </Card>
 
@@ -2694,7 +2864,22 @@ export default function ProductEditPage() {
               </p>
             </div>
             <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
-              <p className="text-gray-500">Your video will appear here</p>
+              {videoUrl.trim() ? (
+                <div className="flex flex-col items-center">
+                  <iframe
+                    width="100%"
+                    height="200"
+                    src={getYoutubeEmbedUrl(videoUrl)}
+                    title="YouTube video player"
+                    style={{ border: 0 }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                  <p className="text-sm text-gray-500 mt-2">Video preview</p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Paste a YouTube video link to see a preview</p>
+              )}
             </div>
           </div>
           <DialogFooter>

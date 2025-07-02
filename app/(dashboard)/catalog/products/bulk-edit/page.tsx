@@ -255,297 +255,297 @@ export default function BulkProductEditor() {
             </Button>
           </div>
         </div>
-        
+
         <div className="flex gap-6 h-[calc(100vh-240px)]">
           {/* Sidebar - Fixed width */}
           <div className="w-80 flex-shrink-0">
             {/* Columns Filter */}
             <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-lg overflow-hidden h-full flex flex-col">
-                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Package className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Columns</h3>
-                      <span className="text-sm text-gray-500">({activeColumnsCount} active)</span>
-                    </div>
+              <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Package className="h-5 w-5 text-blue-600" />
                   </div>
-                </div>
-
-                {/* Scrollable sections container */}
-                <div className="flex-1 overflow-y-auto">
-                  {/* General Section */}
-                  <div className="border-b border-gray-100">
-                    <button
-                      onClick={() => toggleSection("general")}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                        <span className="font-medium text-gray-900">General</span>
-                      </div>
-                      <ChevronDown
-                        className={`h-4 w-4 transition-transform duration-200 text-blue-600 ${expandedSections.general ? "rotate-180" : ""
-                          }`}
-                      />
-                    </button>
-                    {expandedSections.general && (
-                      <div className="px-4 pb-4 space-y-3 bg-gradient-to-r from-blue-25 to-indigo-25">{/* ...existing general options... */}
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("productGallery")}
-                        >
-                          <span className={`text-sm ${columns.productGallery ? "" : "text-gray-500"}`}>Product gallery</span>
-                          <Checkbox checked={columns.productGallery} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("name")}
-                        >
-                          <span className={`text-sm ${columns.name ? "" : "text-gray-500"}`}>Name</span>
-                          <Checkbox checked={columns.name} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("sku")}
-                        >
-                          <span className={`text-sm ${columns.sku ? "" : "text-gray-500"}`}>SKU</span>
-                          <Checkbox checked={columns.sku} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("availability")}
-                        >
-                          <span className={`text-sm ${columns.availability ? "" : "text-gray-500"}`}>Availability</span>
-                          <Checkbox checked={columns.availability} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("description")}
-                        >
-                          <span className={`text-sm ${columns.description ? "" : "text-gray-500"}`}>Description</span>
-                          <Checkbox checked={columns.description} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("ribbon")}
-                        >
-                          <span className={`text-sm ${columns.ribbon ? "" : "text-gray-500"}`}>Ribbon</span>
-                          <Checkbox checked={columns.ribbon} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("featuredOnHomepage")}
-                        >
-                          <span className={`text-sm ${columns.featuredOnHomepage ? "" : "text-gray-500"}`}>Featured on homepage</span>
-                          <Checkbox checked={columns.featuredOnHomepage} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("isRecommended")}
-                        >
-                          <span className={`text-sm ${columns.isRecommended ? "" : "text-gray-500"}`}>Recommended</span>
-                          <Checkbox checked={columns.isRecommended} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("ribbonColor")}
-                        >
-                          <span className={`text-sm ${columns.ribbonColor ? "" : "text-gray-500"}`}>Ribbon color</span>
-                          <Checkbox checked={columns.ribbonColor} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Pricing Section */}
-                  <div className="border-b">
-                    <button
-                      onClick={() => toggleSection("pricing")}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                      <span className="font-medium">Pricing</span>
-                      <ChevronDown
-                        className={`h-4 w-4 transition-transform ${expandedSections.pricing ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {expandedSections.pricing && (
-                      <div className="px-4 pb-4 space-y-2">
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("price")}
-                        >
-                          <span className={`text-sm ${columns.price ? "" : "text-gray-500"}`}>Price</span>
-                          <Checkbox checked={columns.price} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("compareToPrice")}
-                        >
-                          <span className={`text-sm ${columns.compareToPrice ? "" : "text-gray-500"}`}>Discounted price</span>
-                          <Checkbox checked={columns.compareToPrice} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("priceDiscountStart")}
-                        >
-                          <span className={`text-sm ${columns.priceDiscountStart ? "" : "text-gray-500"}`}>Discount start date</span>
-                          <Checkbox checked={columns.priceDiscountStart} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("priceDiscountEnd")}
-                        >
-                          <span className={`text-sm ${columns.priceDiscountEnd ? "" : "text-gray-500"}`}>Discount end date</span>
-                          <Checkbox checked={columns.priceDiscountEnd} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("costPrice")}
-                        >
-                          <span className={`text-sm ${columns.costPrice ? "" : "text-gray-500"}`}>Cost price</span>
-                          <Checkbox checked={columns.costPrice} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Inventory Section */}
-                  <div className="border-b">
-                    <button
-                      onClick={() => toggleSection("inventory")}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                      <span className="font-medium">Inventory</span>
-                      <ChevronDown
-                        className={`h-4 w-4 transition-transform ${expandedSections.inventory ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {expandedSections.inventory && (
-                      <div className="px-4 pb-4 space-y-2">
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("stock")}
-                        >
-                          <span className={`text-sm ${columns.stock ? "" : "text-gray-500"}`}>Stock</span>
-                          <Checkbox checked={columns.stock} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("stockUnlimited")}
-                        >
-                          <span className={`text-sm ${columns.stockUnlimited ? "" : "text-gray-500"}`}>Stock unlimited</span>
-                          <Checkbox checked={columns.stockUnlimited} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("outOfStockBehavior")}
-                        >
-                          <span className={`text-sm ${columns.outOfStockBehavior ? "" : "text-gray-500"}`}>Out of stock behavior</span>
-                          <Checkbox checked={columns.outOfStockBehavior} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("minimumPurchaseQuantity")}
-                        >
-                          <span className={`text-sm ${columns.minimumPurchaseQuantity ? "" : "text-gray-500"}`}>Minimum purchase quantity</span>
-                          <Checkbox checked={columns.minimumPurchaseQuantity} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("maximumPurchaseQuantity")}
-                        >
-                          <span className={`text-sm ${columns.maximumPurchaseQuantity ? "" : "text-gray-500"}`}>Maximum purchase quantity</span>
-                          <Checkbox checked={columns.maximumPurchaseQuantity} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Shipping Section */}
                   <div>
-                    <button
-                      onClick={() => toggleSection("shipping")}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                      <span className="font-medium">Shipping</span>
-                      <ChevronDown
-                        className={`h-4 w-4 transition-transform ${expandedSections.shipping ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {expandedSections.shipping && (
-                      <div className="px-4 pb-4 space-y-2">
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("requiresShippingOrPickup")}
-                        >
-                          <span className={`text-sm ${columns.requiresShippingOrPickup ? "" : "text-gray-500"}`}>Requires shipping or pickup</span>
-                          <Checkbox checked={columns.requiresShippingOrPickup} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("weight")}
-                        >
-                          <span className={`text-sm ${columns.weight ? "" : "text-gray-500"}`}>Weight</span>
-                          <Checkbox checked={columns.weight} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("dimensions")}
-                        >
-                          <span className={`text-sm ${columns.dimensions ? "" : "text-gray-500"}`}>Dimensions (L×W×H)</span>
-                          <Checkbox checked={columns.dimensions} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("shippingType")}
-                        >
-                          <span className={`text-sm ${columns.shippingType ? "" : "text-gray-500"}`}>Shipping type</span>
-                          <Checkbox checked={columns.shippingType} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("shippingRateSingle")}
-                        >
-                          <span className={`text-sm ${columns.shippingRateSingle ? "" : "text-gray-500"}`}>Shipping rate (single)</span>
-                          <Checkbox checked={columns.shippingRateSingle} />
-                        </div>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleColumn("shippingRateMulti")}
-                        >
-                          <span className={`text-sm ${columns.shippingRateMulti ? "" : "text-gray-500"}`}>Shipping rate (multi)</span>
-                          <Checkbox checked={columns.shippingRateMulti} />
-                        </div>
-                      </div>
-                    )}
+                    <h3 className="font-semibold text-gray-900">Columns</h3>
+                    <span className="text-sm text-gray-500">({activeColumnsCount} active)</span>
                   </div>
                 </div>
               </div>
 
-              {/* Save Changes Button - Fixed at bottom */}
-              <div className="p-4 border-t border-gray-100 bg-white/80 flex-shrink-0">
-                <Button
-                  className="w-full"
-                  variant="default"
-                  onClick={saveChanges}
-                  disabled={isSaving || Object.keys(editedProducts).length === 0}
-                >
-                  {isSaving ? (
-                    <>
-                      <Package className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes ({Object.keys(editedProducts).length})
-                    </>
+              {/* Scrollable sections container */}
+              <div className="flex-1 overflow-y-auto">
+                {/* General Section */}
+                <div className="border-b border-gray-100">
+                  <button
+                    onClick={() => toggleSection("general")}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="font-medium text-gray-900">General</span>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform duration-200 text-blue-600 ${expandedSections.general ? "rotate-180" : ""
+                        }`}
+                    />
+                  </button>
+                  {expandedSections.general && (
+                    <div className="px-4 pb-4 space-y-3 bg-gradient-to-r from-blue-25 to-indigo-25">{/* ...existing general options... */}
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("productGallery")}
+                      >
+                        <span className={`text-sm ${columns.productGallery ? "" : "text-gray-500"}`}>Product gallery</span>
+                        <Checkbox checked={columns.productGallery} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("name")}
+                      >
+                        <span className={`text-sm ${columns.name ? "" : "text-gray-500"}`}>Name</span>
+                        <Checkbox checked={columns.name} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("sku")}
+                      >
+                        <span className={`text-sm ${columns.sku ? "" : "text-gray-500"}`}>SKU</span>
+                        <Checkbox checked={columns.sku} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("availability")}
+                      >
+                        <span className={`text-sm ${columns.availability ? "" : "text-gray-500"}`}>Availability</span>
+                        <Checkbox checked={columns.availability} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("description")}
+                      >
+                        <span className={`text-sm ${columns.description ? "" : "text-gray-500"}`}>Description</span>
+                        <Checkbox checked={columns.description} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("ribbon")}
+                      >
+                        <span className={`text-sm ${columns.ribbon ? "" : "text-gray-500"}`}>Ribbon</span>
+                        <Checkbox checked={columns.ribbon} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("featuredOnHomepage")}
+                      >
+                        <span className={`text-sm ${columns.featuredOnHomepage ? "" : "text-gray-500"}`}>Featured on homepage</span>
+                        <Checkbox checked={columns.featuredOnHomepage} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("isRecommended")}
+                      >
+                        <span className={`text-sm ${columns.isRecommended ? "" : "text-gray-500"}`}>Recommended</span>
+                        <Checkbox checked={columns.isRecommended} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("ribbonColor")}
+                      >
+                        <span className={`text-sm ${columns.ribbonColor ? "" : "text-gray-500"}`}>Ribbon color</span>
+                        <Checkbox checked={columns.ribbonColor} />
+                      </div>
+                    </div>
                   )}
-                </Button>
+                </div>
+
+                {/* Pricing Section */}
+                <div className="border-b">
+                  <button
+                    onClick={() => toggleSection("pricing")}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                  >
+                    <span className="font-medium">Pricing</span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${expandedSections.pricing ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {expandedSections.pricing && (
+                    <div className="px-4 pb-4 space-y-2">
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("price")}
+                      >
+                        <span className={`text-sm ${columns.price ? "" : "text-gray-500"}`}>Price</span>
+                        <Checkbox checked={columns.price} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("compareToPrice")}
+                      >
+                        <span className={`text-sm ${columns.compareToPrice ? "" : "text-gray-500"}`}>Discounted price</span>
+                        <Checkbox checked={columns.compareToPrice} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("priceDiscountStart")}
+                      >
+                        <span className={`text-sm ${columns.priceDiscountStart ? "" : "text-gray-500"}`}>Discount start date</span>
+                        <Checkbox checked={columns.priceDiscountStart} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("priceDiscountEnd")}
+                      >
+                        <span className={`text-sm ${columns.priceDiscountEnd ? "" : "text-gray-500"}`}>Discount end date</span>
+                        <Checkbox checked={columns.priceDiscountEnd} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("costPrice")}
+                      >
+                        <span className={`text-sm ${columns.costPrice ? "" : "text-gray-500"}`}>Cost price</span>
+                        <Checkbox checked={columns.costPrice} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Inventory Section */}
+                <div className="border-b">
+                  <button
+                    onClick={() => toggleSection("inventory")}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                  >
+                    <span className="font-medium">Inventory</span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${expandedSections.inventory ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {expandedSections.inventory && (
+                    <div className="px-4 pb-4 space-y-2">
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("stock")}
+                      >
+                        <span className={`text-sm ${columns.stock ? "" : "text-gray-500"}`}>Stock</span>
+                        <Checkbox checked={columns.stock} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("stockUnlimited")}
+                      >
+                        <span className={`text-sm ${columns.stockUnlimited ? "" : "text-gray-500"}`}>Stock unlimited</span>
+                        <Checkbox checked={columns.stockUnlimited} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("outOfStockBehavior")}
+                      >
+                        <span className={`text-sm ${columns.outOfStockBehavior ? "" : "text-gray-500"}`}>Out of stock behavior</span>
+                        <Checkbox checked={columns.outOfStockBehavior} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("minimumPurchaseQuantity")}
+                      >
+                        <span className={`text-sm ${columns.minimumPurchaseQuantity ? "" : "text-gray-500"}`}>Minimum purchase quantity</span>
+                        <Checkbox checked={columns.minimumPurchaseQuantity} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("maximumPurchaseQuantity")}
+                      >
+                        <span className={`text-sm ${columns.maximumPurchaseQuantity ? "" : "text-gray-500"}`}>Maximum purchase quantity</span>
+                        <Checkbox checked={columns.maximumPurchaseQuantity} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Shipping Section */}
+                <div>
+                  <button
+                    onClick={() => toggleSection("shipping")}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                  >
+                    <span className="font-medium">Shipping</span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${expandedSections.shipping ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {expandedSections.shipping && (
+                    <div className="px-4 pb-4 space-y-2">
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("requiresShippingOrPickup")}
+                      >
+                        <span className={`text-sm ${columns.requiresShippingOrPickup ? "" : "text-gray-500"}`}>Requires shipping or pickup</span>
+                        <Checkbox checked={columns.requiresShippingOrPickup} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("weight")}
+                      >
+                        <span className={`text-sm ${columns.weight ? "" : "text-gray-500"}`}>Weight</span>
+                        <Checkbox checked={columns.weight} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("dimensions")}
+                      >
+                        <span className={`text-sm ${columns.dimensions ? "" : "text-gray-500"}`}>Dimensions (L×W×H)</span>
+                        <Checkbox checked={columns.dimensions} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("shippingType")}
+                      >
+                        <span className={`text-sm ${columns.shippingType ? "" : "text-gray-500"}`}>Shipping type</span>
+                        <Checkbox checked={columns.shippingType} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("shippingRateSingle")}
+                      >
+                        <span className={`text-sm ${columns.shippingRateSingle ? "" : "text-gray-500"}`}>Shipping rate (single)</span>
+                        <Checkbox checked={columns.shippingRateSingle} />
+                      </div>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => toggleColumn("shippingRateMulti")}
+                      >
+                        <span className={`text-sm ${columns.shippingRateMulti ? "" : "text-gray-500"}`}>Shipping rate (multi)</span>
+                        <Checkbox checked={columns.shippingRateMulti} />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Save Changes Button - Fixed at bottom */}
+            <div className="p-4 border-t border-gray-100 bg-white/80 flex-shrink-0">
+              <Button
+                className="w-full"
+                variant="default"
+                onClick={saveChanges}
+                disabled={isSaving || Object.keys(editedProducts).length === 0}
+              >
+                {isSaving ? (
+                  <>
+                    <Package className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Changes ({Object.keys(editedProducts).length})
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
 
           {/* Main Content - Scrollable table */}
           <div className="flex-1 min-w-[300px]">
@@ -814,7 +814,7 @@ export default function BulkProductEditor() {
                                 ) : (
                                   <Package className="h-5 w-5 text-gray-400" />
                                 )}
-                                
+
                                 {/* Media count overlay */}
                                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
                                   <div className="opacity-0 group-hover:opacity-100 flex gap-1">
@@ -831,7 +831,7 @@ export default function BulkProductEditor() {
                                   </div>
                                 </div>
                               </div>
-                              
+
                               {/* Edit images button */}
                               <ProductImagesEditor
                                 productId={product.id}
