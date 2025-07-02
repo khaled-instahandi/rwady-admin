@@ -383,10 +383,10 @@ export default function OrdersPage() {
                                         <TableCell>
                                             <div className="text-left">
                                                 <div className="font-medium">
-                                                    {formatCurrency(order.total_amount, order.metadata?.currency)}
+                                                    {formatCurrency(order.total_amount, order.metadata.currency)}
                                                 </div>
                                                 <div className="text-sm text-gray-500">
-                                                    Paid: {formatCurrency(order.total_amount_paid, order.metadata?.currency)}
+                                                    Paid: {formatCurrency(order.total_amount_paid, order.metadata.currency)}
                                                 </div>
                                             </div>
                                         </TableCell>

@@ -89,27 +89,7 @@ export function ImageUpload({ value, imageName, onChange, folder, className }: I
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
       {/* {preview ? ( */}
-      {/* <motion.div
-        className="relative inline-block"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <img
-          src={preview || "/placeholder.svg"}
-          alt="Preview"
-          className="w-32 h-32 object-cover rounded-lg border shadow-sm hover:shadow-md transition-shadow"
-        />
-        <Button
-          type="button"
-          variant="destructive"
-          size="sm"
-          className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 shadow-md"
-          onClick={handleRemove}
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      </motion.div> */}
+
       {/* ) : ( */}
       <div
         className={`w-32 h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
@@ -125,7 +105,27 @@ export function ImageUpload({ value, imageName, onChange, folder, className }: I
             <Loader2 className="h-6 w-6 text-blue-600 animate-spin mx-auto mb-2" />
             <span className="text-xs text-gray-500">Uploading...</span>
           </div>
-        ) : (
+        ) : (preview ? (<motion.div
+          className="relative inline-block"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <img
+            src={preview || "/placeholder.svg"}
+            alt="Preview"
+            className="w-32 h-32 object-cover rounded-lg border shadow-sm hover:shadow-md transition-shadow"
+          />
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 shadow-md"
+            onClick={handleRemove}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </motion.div>) :
           <>
             <ImageIcon className="h-8 w-8 text-gray-400 mb-2" />
             <span className="text-xs text-gray-500 text-center">

@@ -11,6 +11,7 @@ import { ImageUpload } from "@/components/ui/image-upload"
 import { useToast } from "@/components/ui/use-toast"
 import { apiService, type Brand } from "@/lib/api"
 import { Plus, Edit, Trash2, Package, Eye, EyeOff, Settings } from "lucide-react"
+import { CategorySkeleton } from "@/components/categories/category-skeleton"
 
 export default function BrandsPage() {
   const [brands, setBrands] = useState<Brand[]>([])
@@ -172,31 +173,7 @@ export default function BrandsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Brands</h1>
-            <p className="text-muted-foreground">Manage product brands and manufacturers</p>
-          </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[...Array(8)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <div className="h-32 bg-gray-200 rounded-t-lg"></div>
-              <CardContent className="p-4">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                <div className="flex gap-2">
-                  <div className="h-8 bg-gray-200 rounded flex-1"></div>
-                  <div className="h-8 bg-gray-200 rounded w-8"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    )
+    return <CategorySkeleton />
   }
 
   return (
@@ -228,11 +205,10 @@ export default function BrandsPage() {
               </div>
               <div className="max-h-[600px] overflow-y-auto">
                 {brands.map((brand) => (
-                  <div 
+                  <div
                     key={brand.id}
-                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedBrand?.id === brand.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                    }`}
+                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${selectedBrand?.id === brand.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                      }`}
                     onClick={() => handleEdit(brand)}
                   >
                     <div className="flex items-center justify-between">

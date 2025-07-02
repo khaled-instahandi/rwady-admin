@@ -33,6 +33,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { CategorySkeleton } from "@/components/categories/category-skeleton"
 import { ProductAssignmentModal } from "@/components/products/product-assignment-modal"
+import { useRouter } from "next/navigation"
 
 interface CategoryFormData {
   name: {
@@ -72,7 +73,7 @@ export default function CategoriesPage() {
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([])
   const [loadingProducts, setLoadingProducts] = useState(false)
-
+  const router = useRouter()
   const [formData, setFormData] = useState<CategoryFormData>({
     name: { ar: "", en: "" },
     description: { ar: "", en: "" },
@@ -310,6 +311,7 @@ export default function CategoriesPage() {
         [field]: value,
       };
     });
+    // Always set unsaved changes to true when form changes, even for new categories
     setUnsavedChanges(true);
   }
 
@@ -329,6 +331,7 @@ export default function CategoriesPage() {
         },
       };
     });
+    // Always set unsaved changes to true when form changes, even for new categories
     setUnsavedChanges(true);
   }
 
@@ -344,6 +347,16 @@ export default function CategoriesPage() {
   const handleSave = async () => {
     if (!selectedCategory) return
 
+    // Validate required fields
+    if (!formData.name.ar.trim()) {
+      toast({
+        title: "Error",
+        description: "Arabic name is required",
+        variant: "destructive",
+      })
+      return
+    }
+
     setSaving(true)
     try {
       // Prepare data for API - use image_name instead of image URL
@@ -353,39 +366,49 @@ export default function CategoriesPage() {
       }
       console.log("Saving category data:", dataToSend);
 
+      let response
 
-      const response = await apiService.updateCategory(selectedCategory.id, dataToSend)
-      if (response.success) {
-        setUnsavedChanges(false)
-        toast({
-          title: "Success",
-          description: "Category updated successfully",
-          variant: "default",
-        })
-        setFormData({
-          name: { ar: "", en: "" },
-          description: { ar: "", en: "" },
-          parent_id: null,
-          availability: true,
-          image: "",
-          image_name: "",
-          image_url: "",
-          seo: {
-            meta_title: "",
-            meta_description: "",
-            keywords: "",
-            image: "",
-          },
-        })
-        await loadCategories()
-        // Update selected category with the latest data
-        setSelectedCategory(response.data)
+      // Check if this is a new category (id = 0) or existing category
+      if (selectedCategory.id === 0) {
+        // Create new category
+        response = await apiService.createCategory(dataToSend)
+        if (response.success) {
+          setUnsavedChanges(false)
+          toast({
+            title: "Success",
+            description: "Category created successfully",
+            variant: "default",
+          })
+          await loadCategories()
+          // Update selected category with the response data
+          setSelectedCategory(response.data)
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "Failed to create category",
+            variant: "destructive",
+          })
+        }
       } else {
-        toast({
-          title: "Error",
-          description: response.message || "Failed to update category",
-          variant: "destructive",
-        })
+        // Update existing category
+        response = await apiService.updateCategory(selectedCategory.id, dataToSend)
+        if (response.success) {
+          setUnsavedChanges(false)
+          toast({
+            title: "Success",
+            description: "Category updated successfully",
+            variant: "default",
+          })
+          await loadCategories()
+          // Update selected category with the latest data
+          setSelectedCategory(response.data)
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "Failed to update category",
+            variant: "destructive",
+          })
+        }
       }
     } catch (error) {
       console.error("Failed to save category:", error)
@@ -400,89 +423,79 @@ export default function CategoriesPage() {
   }
 
   const handleCreateRootCategory = async () => {
-    const newCategoryData = {
-      name: { ar: "فئة جديدة", en: "New Category" },
+    // Create a new empty category object for form
+    const newCategory: Category = {
+      id: 0, // Temporary ID for new category
+      name: { ar: "", en: "" },
+      description: { ar: "", en: "" },
+      parent_id: null,
+      availability: 1,
+      image: null,
+      image_url: null,
+      children: [],
+      orders: 0,
+      products_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // Set the new category as selected and reset form
+    setSelectedCategory(newCategory)
+    setFormData({
+      name: { ar: "", en: "" },
       description: { ar: "", en: "" },
       parent_id: null,
       availability: true,
       image: "",
+      image_name: "",
+      image_url: "",
       seo: {
         meta_title: "",
         meta_description: "",
         keywords: "",
         image: "",
       },
-    }
-
-    try {
-      const response = await apiService.createCategory(newCategoryData)
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Root category created successfully",
-          variant: "default",
-        })
-        await loadCategories()
-        setSelectedCategory(response.data)
-      } else {
-        toast({
-          title: "Error",
-          description: response.message || "Failed to create category",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Failed to create category:", error)
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      })
-    }
+    })
+    setUnsavedChanges(false)
   }
 
   const handleCreateSubcategory = async () => {
     if (!selectedCategory) return
 
-    const newCategoryData = {
-      name: { ar: "فئة فرعية جديدة", en: "New Subcategory" },
+    // Create a new empty subcategory object for form
+    const newSubcategory: Category = {
+      id: 0, // Temporary ID for new category
+      name: { ar: "", en: "" },
       description: { ar: "", en: "" },
       parent_id: selectedCategory.id,
-      availability: false,
+      availability: 1,
+      image: null,
+      image_url: null,
+      children: [],
+      orders: 0,
+      products_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // Set the new subcategory as selected and reset form
+    setSelectedCategory(newSubcategory)
+    setFormData({
+      name: { ar: "", en: "" },
+      description: { ar: "", en: "" },
+      parent_id: selectedCategory.id,
+      availability: true,
       image: "",
+      image_name: "",
+      image_url: "",
       seo: {
         meta_title: "",
         meta_description: "",
         keywords: "",
         image: "",
       },
-    }
-
-    try {
-      const response = await apiService.createCategory(newCategoryData)
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Subcategory created successfully",
-          variant: "default",
-        })
-        await loadCategories()
-        setSelectedCategory(response.data)
-      } else {
-        toast({
-          title: "Error",
-          description: response.message || "Failed to create subcategory",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Failed to create subcategory:", error)
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      })
-    }
+    })
+    setUnsavedChanges(false)
   }
 
   const handleDeleteCategory = async () => {
@@ -548,7 +561,7 @@ export default function CategoriesPage() {
         const currentId = Number(currentProduct.id);
         const originalPosition = originalPositions.get(currentId) || 0;
         const newPosition = i + 1;
-        
+
         if (originalPosition !== newPosition) {
           movedProductId = currentId;
           targetPosition = newPosition;
@@ -570,7 +583,7 @@ export default function CategoriesPage() {
             // Refresh product data from the server response
             setCategoryProducts(response.data);
           }
-          
+
           toast({
             title: "Success",
             description: "منتجات الفئة تم ترتيبها بنجاح",
@@ -762,9 +775,14 @@ export default function CategoriesPage() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">
-                    "{selectedCategory.name.ar || selectedCategory.name.en || "Unnamed Category"}"
+                    {selectedCategory.id === 0
+                      ? "New Category"
+                      : `"${selectedCategory.name.ar || selectedCategory.name.en || "Unnamed Category"}"`
+                    }
                   </h1>
-                  <p className="text-gray-500">ID: {selectedCategory.id}</p>
+                  <p className="text-gray-500">
+                    {selectedCategory.id === 0 ? "Create a new category" : `ID: ${selectedCategory.id}`}
+                  </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   {unsavedChanges && (
@@ -779,18 +797,18 @@ export default function CategoriesPage() {
                   )}
                   <Button
                     onClick={handleSave}
-                    disabled={saving || !unsavedChanges}
+                    disabled={saving || (!unsavedChanges && selectedCategory.id !== 0) || !formData.name.ar.trim()}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
+                        {selectedCategory.id === 0 ? "Creating..." : "Saving..."}
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4 mr-2" />
-                        Save Changes (Ctrl+S)
+                        {selectedCategory.id === 0 ? "Create Category" : "Save Changes (Ctrl+S)"}
                       </>
                     )}
                   </Button>
@@ -941,7 +959,38 @@ export default function CategoriesPage() {
                 <TabsContent value="products" className="space-y-6">
                   <Card className="border-gray-200 shadow-sm">
                     <CardContent className="p-6">
-                      {loadingProducts ? (
+                      {selectedCategory.id === 0 ? (
+                        <div className="text-center py-12">
+                          <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                            className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center"
+                          >
+                            <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
+                          </motion.div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            Save category first to manage products
+                          </h3>
+                          <p className="text-gray-600 mb-4">
+                            You need to create the category before you can assign products to it.
+                          </p>
+                          <Button
+                            onClick={handleSave}
+                            disabled={saving || !formData.name.ar.trim()}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            {saving ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              "Create Category First"
+                            )}
+                          </Button>
+                        </div>
+                      ) : loadingProducts ? (
                         <div className="text-center py-12">
                           <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
                           <p className="text-gray-600">Loading products...</p>
@@ -963,7 +1012,9 @@ export default function CategoriesPage() {
                             <Button onClick={() => setShowAssignModal(true)} className="bg-blue-600 hover:bg-blue-700">
                               Assign Products to Category
                             </Button>
-                            <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+                            <Button
+                              onClick={() => router.push("/catalog/products/new")}
+                              variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
                               Create New Product
                             </Button>
                           </div>
@@ -1019,7 +1070,7 @@ export default function CategoriesPage() {
                                   className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all group"
                                 >
                                   <div className="flex items-center space-x-4">
-                                    <div 
+                                    <div
                                       className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center ml-2 text-sm text-blue-700 font-medium shadow-sm group-hover:bg-blue-200 transition-colors"
                                       title={`الترتيب الفعلي: ${product.position || 0}`}
                                     >
@@ -1084,10 +1135,10 @@ export default function CategoriesPage() {
                       >
                         <div className="text-blue-600 text-lg font-medium mb-1">
                           {formData.seo.meta_title ||
-                            `${selectedCategory.name.ar || selectedCategory.name.en} - Rwady Store`}
+                            `${selectedCategory.name.ar || selectedCategory.name.en || formData.name.ar || "New Category"} - Rwady Store`}
                         </div>
                         <div className="text-green-600 text-sm">
-                          https://www.rwady-store.com/categories/{selectedCategory.id}
+                          https://www.rwady-store.com/categories/{selectedCategory.id === 0 ? "new" : selectedCategory.id}
                         </div>
                         <div className="text-gray-600 text-sm mt-1">
                           {formData.seo.meta_description || formData.description.ar || "Category description"}
@@ -1156,7 +1207,7 @@ export default function CategoriesPage() {
                               id="meta-title"
                               value={formData.seo.meta_title}
                               onChange={(e) => handleNestedFormChange("seo", "meta_title", e.target.value)}
-                              placeholder={`${selectedCategory.name.ar || selectedCategory.name.en} - Rwady Store`}
+                              placeholder={`${selectedCategory.name.ar || selectedCategory.name.en || formData.name.ar || "New Category"} - Rwady Store`}
                               className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                             />
                             <div className="text-xs text-gray-500 mt-1 flex justify-end">
