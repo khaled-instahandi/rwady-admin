@@ -126,6 +126,10 @@ export default function OrderDetailPage() {
         return `${amount.toLocaleString()} ${currency}`
     }
 
+    const getCurrency = (order: Order) => {
+        return order.metadata?.currency || "IQD"
+    }
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US")
     }
@@ -213,10 +217,10 @@ export default function OrderDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {formatCurrency(order.total_amount, order.metadata.currency)}
+                            {formatCurrency(order.total_amount, getCurrency(order))}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Paid: {formatCurrency(order.total_amount_paid, order.metadata.currency)}
+                            Paid: {formatCurrency(order.total_amount_paid, getCurrency(order))}
                         </p>
                     </CardContent>
                 </Card>
@@ -357,18 +361,18 @@ export default function OrderDetailPage() {
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span>Subtotal:</span>
-                                    <span>{formatCurrency(order.total_amount, order.metadata.currency)}</span>
+                                    <span>{formatCurrency(order.total_amount, getCurrency(order))}</span>
                                 </div>
                                 {order.payment_fees && (
                                     <div className="flex justify-between">
                                         <span>Payment Fees:</span>
-                                        <span>{formatCurrency(order.payment_fees, order.metadata.currency)}</span>
+                                        <span>{formatCurrency(order.payment_fees, getCurrency(order))}</span>
                                     </div>
                                 )}
                                 <Separator />
                                 <div className="flex justify-between text-lg font-semibold">
                                     <span>Total:</span>
-                                    <span>{formatCurrency(order.total_amount, order.metadata.currency)}</span>
+                                    <span>{formatCurrency(order.total_amount, getCurrency(order))}</span>
                                 </div>
                             </div>
                         </div>
@@ -397,21 +401,21 @@ export default function OrderDetailPage() {
                         <div>
                             <label className="text-sm font-medium text-gray-500">Session ID</label>
                             <div className="mt-1 font-mono text-sm">
-                                {order.payment_session_id}
+                                {order.payment_session_id  || 'N/A'}
                             </div>
                         </div>
 
                         <div>
                             <label className="text-sm font-medium text-gray-500">Payment ID</label>
                             <div className="mt-1 font-mono text-sm">
-                                {order.metadata.paymentId}
+                                {order.metadata?.paymentId || 'N/A'}
                             </div>
                         </div>
 
                         <div>
                             <label className="text-sm font-medium text-gray-500">Payment Created</label>
                             <div className="mt-1 text-sm">
-                                {formatDate(order.metadata.creationDate)}
+                                {order.metadata?.creationDate ? formatDate(order.metadata.creationDate) : 'N/A'}
                             </div>
                         </div>
                     </div>
@@ -435,7 +439,7 @@ export default function OrderDetailPage() {
                                         </div>
                                         <div className="text-right">
                                             <div className="font-medium">
-                                                {formatCurrency(payment.amount, order.metadata.currency)}
+                                                {formatCurrency(payment.amount, getCurrency(order))}
                                             </div>
                                             <div className="text-sm">
                                                 <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'}>

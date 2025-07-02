@@ -177,6 +177,10 @@ export default function OrdersPage() {
         return `${amount.toLocaleString()} ${currency}`
     }
 
+    const getCurrency = (order: Order) => {
+        return order.metadata?.currency || "IQD"
+    }
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US")
     }
@@ -383,10 +387,10 @@ export default function OrdersPage() {
                                         <TableCell>
                                             <div className="text-left">
                                                 <div className="font-medium">
-                                                    {formatCurrency(order.total_amount, order.metadata.currency)}
+                                                    {formatCurrency(order.total_amount, getCurrency(order))}
                                                 </div>
                                                 <div className="text-sm text-gray-500">
-                                                    Paid: {formatCurrency(order.total_amount_paid, order.metadata.currency)}
+                                                    Paid: {formatCurrency(order.total_amount_paid, getCurrency(order))}
                                                 </div>
                                             </div>
                                         </TableCell>
