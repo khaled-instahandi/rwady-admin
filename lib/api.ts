@@ -918,3 +918,146 @@ export const ordersApi = {
     return response.json()
   }
 }
+
+// Settings Interface
+export interface Setting {
+  id: number
+  key: string
+  value: string
+  type: "text" | "html" | "float" | "boolean" | "json"
+  allow_null: boolean
+  is_setting: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface SettingsResponse {
+  success: boolean
+  data: Setting[]
+  meta?: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+}
+
+export interface SettingResponse {
+  success: boolean
+  data: Setting
+}
+
+// Settings API
+export const settingsApi = {
+  async getAll(params?: { page?: number; per_page?: number }): Promise<SettingsResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append("page", params.page.toString())
+    if (params?.per_page) searchParams.append("per_page", params.per_page.toString())
+    
+    const response = await fetch(`${API_BASE_URL}/admin/settings?${searchParams.toString()}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في تحميل الإعدادات")
+    }
+
+    return response.json()
+  },
+
+  async getById(id: number): Promise<SettingResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/settings/${id}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في تحميل الإعداد")
+    }
+
+    return response.json()
+  },
+
+  async getByKey(key: string): Promise<SettingResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/settings/${key}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في تحميل الإعداد")
+    }
+
+    return response.json()
+  },
+
+  async create(setting: Omit<Setting, 'id' | 'created_at' | 'updated_at'>): Promise<SettingResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(setting),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في إنشاء الإعداد")
+    }
+
+    return response.json()
+  },
+
+  async updateById(id: number, value: string): Promise<SettingResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/settings/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ value }),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في تحديث الإعداد")
+    }
+
+    return response.json()
+  },
+
+  async updateByKey(key: string, value: string): Promise<SettingResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/settings/${key}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ value }),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في تحديث الإعداد")
+    }
+
+    return response.json()
+  },
+
+  async bulkUpdate(settings: { key: string; value: string }[]): Promise<SettingsResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ settings }),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في التحديث الجماعي للإعدادات")
+    }
+
+    return response.json()
+  },
+
+  async delete(id: number): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/admin/settings/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("فشل في حذف الإعداد")
+    }
+
+    return response.json()
+  }
+}
