@@ -126,6 +126,7 @@ export default function ProductEditPage() {
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
   const [showSaveNotification, setShowSaveNotification] = useState(false)
   const [availableCategories, setAvailableCategories] = useState<{ id: number; name: string }[]>([])
+  const [categoriesTree, setCategoriesTree] = useState<any[]>([]) // Store original tree structure
   const [availableBrands, setAvailableBrands] = useState<{ id: number; name: string }[]>([])
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [categorySearchQuery, setCategorySearchQuery] = useState("")
@@ -491,6 +492,8 @@ export default function ProductEditPage() {
       // Fetch categories
       const categoriesResponse = await apiService.getCategories()
       if (categoriesResponse.success && categoriesResponse.data) {
+        // Store original tree structure
+        setCategoriesTree(categoriesResponse.data)
         // Flatten categories for the dropdown
         const flatCategories = flattenCategories(categoriesResponse.data)
         setAvailableCategories(flatCategories)
@@ -554,6 +557,164 @@ export default function ProductEditPage() {
       }
     })
     return result
+  }
+
+  // Function to get all child category IDs recursively
+  const getAllChildIds = (category: any): number[] => {
+    let ids: number[] = []
+    if (category.children && category.children.length > 0) {
+      category.children.forEach((child: any) => {
+        ids.push(child.id)
+        ids = [...ids, ...getAllChildIds(child)]
+      })
+    }
+    return ids
+  }
+
+  // Function to handle category selection with children
+  const handleCategorySelection = (categoryId: number, checked: boolean, category?: any) => {
+    const currentCategories = formData.categories || []
+    
+    if (checked) {
+      // Add the category
+      const newCategories = [...currentCategories, categoryId]
+      
+      // Optionally add all children if the category has children
+      if (category?.children && category.children.length > 0) {
+        const childIds = getAllChildIds(category)
+        const uniqueCategories = Array.from(new Set([...newCategories, ...childIds]))
+        handleInputChange("categories", uniqueCategories)
+      } else {
+        handleInputChange("categories", newCategories)
+      }
+    } else {
+      // Remove the category
+      let newCategories = currentCategories.filter(id => id !== categoryId)
+      
+      // Optionally remove all children if the category has children
+      if (category?.children && category.children.length > 0) {
+        const childIds = getAllChildIds(category)
+        newCategories = newCategories.filter(id => !childIds.includes(id))
+      }
+      
+      handleInputChange("categories", newCategories)
+    }
+  }
+
+  // Function to toggle category expansion
+  const toggleCategoryExpansion = (categoryId: number) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId)
+      } else {
+        newSet.add(categoryId)
+      }
+      return newSet
+    })
+  }
+
+  // Function to render category tree recursively
+  const renderCategoryTree = (categories: any[], level = 0) => {
+    return categories
+      .filter(category => {
+        if (!categorySearchQuery) return true
+        const searchLower = categorySearchQuery.toLowerCase()
+        const nameMatch = (category.name?.ar || category.name?.en || category.name || "").toLowerCase().includes(searchLower)
+        const hasMatchingChild = category.children ? hasMatchingDescendant(category.children, searchLower) : false
+        return nameMatch || hasMatchingChild
+      })
+      .map((category) => {
+        const categoryName = category.name?.ar || category.name?.en || category.name || "Unknown"
+        const hasChildren = category.children && category.children.length > 0
+        const isExpanded = expandedCategories.has(category.id)
+        const isSelected = (formData.categories || []).includes(category.id)
+
+        return (
+          <div key={category.id} className="space-y-1">
+            <div 
+              className={`flex items-center justify-between p-2 hover:bg-gray-50 rounded transition-colors ${
+                isSelected ? 'bg-blue-50 border border-blue-200' : ''
+              }`}
+              style={{ paddingLeft: `${8 + level * 16}px` }}
+            >
+              <div className="flex items-center space-x-2 flex-1">
+                {hasChildren ? (
+                  <button
+                    onClick={() => toggleCategoryExpansion(category.id)}
+                    className="w-4 h-4 flex items-center justify-center hover:bg-gray-200 rounded transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-3 w-3 text-gray-600" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3 text-gray-600" />
+                    )}
+                  </button>
+                ) : (
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <div className="w-1 h-1 bg-gray-400 rounded-full" />
+                  </div>
+                )}
+                <Label
+                  htmlFor={`modal-category-${category.id}`}
+                  className={`text-sm cursor-pointer flex-1 ${
+                    isSelected ? 'font-medium text-blue-900' : 'font-normal'
+                  }`}
+                  title={level > 0 ? getCategoryPath(category.id, categoriesTree).join(' > ') : categoryName}
+                >
+                  {categoryName}
+                  {hasChildren && (
+                    <span className="text-xs text-gray-500 ml-1">
+                      ({category.children.length})
+                    </span>
+                  )}
+                </Label>
+              </div>
+              <Checkbox
+                id={`modal-category-${category.id}`}
+                checked={isSelected}
+                onCheckedChange={(checked) => {
+                  handleCategorySelection(category.id, checked as boolean, category)
+                }}
+              />
+            </div>
+            
+            {hasChildren && isExpanded && (
+              <div className="ml-2">
+                {renderCategoryTree(category.children, level + 1)}
+              </div>
+            )}
+          </div>
+        )
+      })
+  }
+
+  // Function to get category path
+  const getCategoryPath = (categoryId: number, categories: any[], currentPath: string[] = []): string[] => {
+    for (const category of categories) {
+      const newPath = [...currentPath, category.name?.ar || category.name?.en || category.name || "Unknown"]
+      
+      if (category.id === categoryId) {
+        return newPath
+      }
+      
+      if (category.children && category.children.length > 0) {
+        const result = getCategoryPath(categoryId, category.children, newPath)
+        if (result.length > 0) {
+          return result
+        }
+      }
+    }
+    return []
+  }
+
+  // Helper function to check if any descendant matches search
+  const hasMatchingDescendant = (categories: any[], searchTerm: string): boolean => {
+    return categories.some(category => {
+      const nameMatch = (category.name?.ar || category.name?.en || category.name || "").toLowerCase().includes(searchTerm)
+      const childMatch = category.children ? hasMatchingDescendant(category.children, searchTerm) : false
+      return nameMatch || childMatch
+    })
   }
 
   // Search for products for related products section
@@ -2918,6 +3079,11 @@ export default function ProductEditPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Select categories to assign to this product</DialogTitle>
+            <div className="text-sm text-gray-600">
+              {(formData.categories || []).length > 0 && (
+                <span>{(formData.categories || []).length} categories selected</span>
+              )}
+            </div>
           </DialogHeader>
           <div className="space-y-4">
             {/* Search input */}
@@ -2939,55 +3105,69 @@ export default function ProductEditPage() {
               </Button>
             </div>
 
-            {/* Categories list */}
-            <div className="max-h-96 overflow-y-auto space-y-1">
-              {availableCategories
-                .filter(category =>
-                  !categorySearchQuery ||
-                  category.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
-                )
-                .map((category) => (
-                  <div key={category.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
-                    <div className="flex items-center space-x-3">
-                      {/* Expandable icon placeholder - you can implement hierarchy later */}
-                      {/* <div className="w-4 h-4 flex items-center justify-center">
-                        <ChevronRight className="h-3 w-3 text-gray-400" />
-                      </div> */}
-                      <Label
-                        htmlFor={`modal-category-${category.id}`}
-                        className="text-sm font-normal cursor-pointer flex-1"
-                      >
-                        {category.name}
-                      </Label>
-                    </div>
-                    <Checkbox
-                      id={`modal-category-${category.id}`}
-                      checked={(formData.categories || []).includes(category.id)}
-                      onCheckedChange={(checked) => {
-                        const currentCategories = formData.categories || [];
-                        if (checked) {
-                          handleInputChange("categories", [...currentCategories, category.id]);
-                        } else {
-                          handleInputChange("categories", currentCategories.filter(id => id !== category.id));
+            {/* Expand/Collapse buttons */}
+            {categoriesTree.length > 0 && !categorySearchQuery && (
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    // Expand all categories
+                    const allIds = new Set<number>()
+                    const collectIds = (cats: any[]) => {
+                      cats.forEach(cat => {
+                        if (cat.children && cat.children.length > 0) {
+                          allIds.add(cat.id)
+                          collectIds(cat.children)
                         }
-                      }}
-                    />
-                  </div>
-                ))}
+                      })
+                    }
+                    collectIds(categoriesTree)
+                    setExpandedCategories(allIds)
+                  }}
+                  className="text-xs"
+                >
+                  Expand All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedCategories(new Set())}
+                  className="text-xs"
+                >
+                  Collapse All
+                </Button>
+              </div>
+            )}
 
-              {availableCategories.filter(category =>
-                !categorySearchQuery ||
-                category.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
-              ).length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <p className="text-sm">
-                      {categorySearchQuery ? "No categories found matching your search" : "No categories available"}
-                    </p>
-                  </div>
-                )}
+            {/* Categories tree */}
+            <div className="max-h-96 overflow-y-auto">
+              {categoriesTree.length > 0 ? (
+                <div className="space-y-1">
+                  {renderCategoryTree(categoriesTree)}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">No categories available</p>
+                </div>
+              )}
             </div>
 
-            {/* Footer with store info */}
+            {/* Footer with actions */}
+            <div className="flex justify-between items-center pt-4 border-t">
+              <span className="text-sm text-gray-600">
+                {(formData.categories || []).length} categories selected
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCategoryModal(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
 
           </div>
         </DialogContent>

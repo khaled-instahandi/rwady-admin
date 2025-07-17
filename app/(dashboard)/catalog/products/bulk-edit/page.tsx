@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -16,6 +16,7 @@ import {
 
 export default function BulkProductEditor() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,15 +71,89 @@ export default function BulkProductEditor() {
 
   useEffect(() => {
     fetchProducts()
-  }, [])
+  }, [searchParams])
 
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const response = await apiService.getProducts({ limit: 100 })
+
+      // Get filter parameters from URL
+      const selectedProductIds = searchParams.get('selected')
+      const search = searchParams.get('search')
+      const status = searchParams.get('status')
+      const categoryId = searchParams.get('category_id')
+      const brandId = searchParams.get('brand_id')
+      const priceMin = searchParams.get('price_min')
+      const priceMax = searchParams.get('price_max')
+      const stockStatus = searchParams.get('stock_status')
+      const requiresShipping = searchParams.get('requires_shipping')
+      const shippingType = searchParams.get('shipping_type')
+      const sortField = searchParams.get('sort_field')
+      const sortOrder = searchParams.get('sort_order')
+
+      // Build API parameters
+      const apiParams: any = { limit: 1000 } // Increased limit for bulk edit
+
+      // Add search parameter
+      if (search) {
+        apiParams.search = search
+      }
+
+      // Add filter parameters
+      if (status && status !== 'any') {
+        apiParams.availability = status === 'enabled' ? 1 : 0
+      }
+      if (categoryId && categoryId !== 'any') {
+        apiParams.category_id = categoryId
+      }
+      if (brandId && brandId !== 'any') {
+        apiParams.brand_id = brandId
+      }
+      if (priceMin) {
+        apiParams.price_min = priceMin
+      }
+      if (priceMax) {
+        apiParams.price_max = priceMax
+      }
+      if (stockStatus && stockStatus !== 'any') {
+        if (stockStatus === 'in_stock') {
+          apiParams.stock_status = 'in_stock'
+        } else if (stockStatus === 'out_of_stock') {
+          apiParams.stock_status = 'out_of_stock'
+        } else if (stockStatus === 'unlimited') {
+          apiParams.stock_unlimited = true
+        } else if (stockStatus === 'preorder') {
+          apiParams.out_of_stock = 'show_and_allow_pre_order'
+        }
+      }
+      if (requiresShipping !== null && requiresShipping !== undefined) {
+        apiParams.requires_shipping = requiresShipping === 'true'
+      }
+      if (shippingType && shippingType !== 'any') {
+        apiParams.shipping_type = shippingType
+      }
+      if (sortField) {
+        apiParams.sort_field = sortField
+      }
+      if (sortOrder) {
+        apiParams.sort_order = sortOrder
+      }
+
+      const response = await apiService.getProducts(apiParams)
 
       if (response.success) {
-        setProducts(response.data)
+        let filteredProducts = response.data
+
+        // If specific products were selected, filter to only those
+        if (selectedProductIds) {
+          const selectedIds = selectedProductIds.split(',').map(id => parseInt(id.trim()))
+          filteredProducts = response.data.filter(product => selectedIds.includes(product.id))
+          
+          // Also pre-select these products in the bulk editor
+          setSelectedProducts(selectedIds.filter(id => filteredProducts.some(p => p.id === id)))
+        }
+
+        setProducts(filteredProducts)
       } else {
         toast({
           title: "Error",
@@ -200,6 +275,38 @@ export default function BulkProductEditor() {
     return price.toLocaleString()
   }
 
+  // Function to get descriptive text about what products are being edited
+  const getEditingDescription = () => {
+    const selectedProductIds = searchParams.get('selected')
+    const search = searchParams.get('search')
+    const hasFilters = searchParams.get('status') || 
+                      searchParams.get('category_id') || 
+                      searchParams.get('brand_id') || 
+                      searchParams.get('price_min') || 
+                      searchParams.get('price_max') || 
+                      searchParams.get('stock_status') || 
+                      searchParams.get('requires_shipping') || 
+                      searchParams.get('shipping_type')
+
+    if (selectedProductIds) {
+      const selectedIds = selectedProductIds.split(',').map(id => parseInt(id.trim()))
+      return `Editing ${selectedIds.length} selected products`
+    }
+
+    if (search || hasFilters) {
+      let description = "Editing filtered products"
+      if (search) {
+        description += ` (search: "${search}")`
+      }
+      if (hasFilters) {
+        description += " with applied filters"
+      }
+      return description
+    }
+
+    return `Editing all products (${products.length} total)`
+  }
+
   // This has been replaced by saveChanges, removing to avoid duplication
 
   if (loading) {
@@ -214,7 +321,7 @@ export default function BulkProductEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+    <div className="min-h-screen ">
       <div className="max-w-full space-y-6">
         {/* Header */}
         <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-6">
@@ -233,14 +340,20 @@ export default function BulkProductEditor() {
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   Bulk Product Editor
                 </h1>
-                <p className="text-gray-600 mt-2 text-lg leading-relaxed">
-                  Save time and effort with this spreadsheet-like interface. Edit properties of multiple products at once.
-                  <br />
-                  <span className="text-blue-600 cursor-pointer hover:underline font-medium"
-                    onClick={() => router.push("/catalog/products")}>
-                    Switch to individual product editing →
-                  </span>
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-gray-600 text-lg leading-relaxed">
+                    Save time and effort with this spreadsheet-like interface. Edit properties of multiple products at once.
+                  </p>
+                  <p className="text-blue-600 font-medium text-sm">
+                    {getEditingDescription()}
+                  </p>
+                  <p className="text-gray-600 text-sm">
+                    <span className="text-blue-600 cursor-pointer hover:underline font-medium"
+                      onClick={() => router.push("/catalog/products")}>
+                      Switch to individual product editing →
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
             <Button
@@ -256,6 +369,37 @@ export default function BulkProductEditor() {
           </div>
         </div>
 
+        {/* No products message */}
+        {products.length === 0 && (
+          <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-lg p-8 text-center">
+            <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600 mb-4">
+              {searchParams.get('selected') 
+                ? "The selected products could not be found or may have been deleted."
+                : "No products match the current filters or search criteria."}
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => router.push("/catalog/products")}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Products
+              </Button>
+              {!searchParams.get('selected') && (
+                <Button
+                  onClick={() => router.push("/catalog/products/bulk-edit")}
+                  variant="outline"
+                >
+                  Edit All Products
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {products.length > 0 && (
         <div className="flex gap-6 h-[calc(100vh-240px)]">
           {/* Sidebar - Fixed width */}
           <div className="w-80 flex-shrink-0">
@@ -1329,6 +1473,7 @@ export default function BulkProductEditor() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

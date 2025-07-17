@@ -435,6 +435,56 @@ export default function ProductsPage() {
     return `${price.toLocaleString()} IQD`
   }
 
+  // Function to generate bulk edit URL with current filters and selected products
+  const getBulkEditUrl = () => {
+    const params = new URLSearchParams()
+
+    // Add selected products if any
+    if (selectedProducts.length > 0) {
+      params.set('selected', selectedProducts.join(','))
+    }
+
+    // Add current search
+    if (debouncedSearch) {
+      params.set('search', debouncedSearch)
+    }
+
+    // Add current filters
+    if (filters.status && filters.status !== 'any') {
+      params.set('status', filters.status)
+    }
+    if (filters.category_id && filters.category_id !== 'any') {
+      params.set('category_id', filters.category_id)
+    }
+    if (filters.brand_id && filters.brand_id !== 'any') {
+      params.set('brand_id', filters.brand_id)
+    }
+    if (filters.price_min) {
+      params.set('price_min', filters.price_min)
+    }
+    if (filters.price_max) {
+      params.set('price_max', filters.price_max)
+    }
+    if (filters.stock_status && filters.stock_status !== 'any') {
+      params.set('stock_status', filters.stock_status)
+    }
+    if (filters.requires_shipping !== undefined) {
+      params.set('requires_shipping', filters.requires_shipping.toString())
+    }
+    if (filters.shipping_type && filters.shipping_type !== 'any') {
+      params.set('shipping_type', filters.shipping_type)
+    }
+    if (filters.sort_field) {
+      params.set('sort_field', filters.sort_field)
+    }
+    if (filters.sort_order) {
+      params.set('sort_order', filters.sort_order)
+    }
+
+    const paramString = params.toString()
+    return paramString ? `?${paramString}` : ''
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -494,8 +544,12 @@ export default function ProductsPage() {
               Add New Product
             </Button>
           </Link>
-          <Link href="/catalog/products/bulk-edit">
-            <Button variant="outline">Bulk Edit All</Button>
+          <Link href={`/catalog/products/bulk-edit${getBulkEditUrl()}`}>
+            <Button variant="outline">
+              {selectedProducts.length > 0 
+                ? `Bulk Edit Selected (${selectedProducts.length})` 
+                : "Bulk Edit All"}
+            </Button>
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -548,10 +602,25 @@ export default function ProductsPage() {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Checkbox
-              checked={selectedProducts.length === products.length && products.length > 0}
-              onCheckedChange={handleSelectAll}
-            />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={selectedProducts.length === products.length && products.length > 0}
+                onCheckedChange={handleSelectAll}
+              />
+              {selectedProducts.length > 0 && (
+                <span className="text-sm text-blue-600 font-medium">
+                  {selectedProducts.length} selected
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedProducts([])}
+                    className="ml-2 h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
+                </span>
+              )}
+            </div>
             <Select
               value={`${filters.sort_field}_${filters.sort_order}`}
               onValueChange={(value) => {
