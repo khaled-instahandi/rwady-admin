@@ -316,7 +316,7 @@ export default function OrdersPage() {
                                 </SelectContent>
                             </Select>
 
-                            <Select value={`${filters.sort_by}_${filters.sort_direction}`} onValueChange={(value) => {
+                            {/* <Select value={`${filters.sort_by}_${filters.sort_direction}`} onValueChange={(value) => {
                                 const [sort_by, sort_direction] = value.split('_')
                                 setFilters(prev => ({ ...prev, sort_by, sort_direction: sort_direction as "asc" | "desc" }))
                             }}>
@@ -329,7 +329,7 @@ export default function OrdersPage() {
                                     <SelectItem value="total_amount_desc">Amount (High to Low)</SelectItem>
                                     <SelectItem value="total_amount_asc">Amount (Low to High)</SelectItem>
                                 </SelectContent>
-                            </Select>
+                            </Select> */}
 
                             <Button variant="outline" onClick={resetFilters}>
                                 Clear Filters
