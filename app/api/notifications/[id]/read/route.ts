@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { mockNotifications } from "@/lib/mock-notifications"
 
 const API_BASE_URL = "https://rwady-backend.ahmed-albakor.com/api"
 
@@ -10,7 +9,7 @@ export async function PUT(
 ) {
   try {
     const { id } = params
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/general/notifications/${id}/read`, {
         method: "PUT",
@@ -32,24 +31,11 @@ export async function PUT(
     } catch (apiError) {
       // If API fails, simulate success response
       console.log("API not available, simulating mark as read")
-      
-      const notification = mockNotifications.find(n => n.id === parseInt(id))
-      if (!notification) {
-        return NextResponse.json(
-          { error: "Notification not found" },
-          { status: 404 }
-        )
-      }
-      
-      const mockResponse = {
-        success: true,
-        data: {
-          ...notification,
-          read_at: new Date().toISOString()
-        }
-      }
-      
-      return NextResponse.json(mockResponse)
+
+
+
+
+
     }
   } catch (error) {
     console.error("Error marking notification as read:", error)

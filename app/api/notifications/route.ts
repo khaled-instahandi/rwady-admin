@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { mockNotifications } from "@/lib/mock-notifications"
 
 const API_BASE_URL = "https://rwady-backend.ahmed-albakor.com/api"
 
@@ -31,23 +30,8 @@ export async function GET(request: NextRequest) {
       // If API fails, return mock data
       console.log("API not available, using mock data")
       
-      // Simulate pagination
-      const startIndex = (page - 1) * per_page
-      const endIndex = startIndex + per_page
-      const paginatedData = mockNotifications.slice(startIndex, endIndex)
+  
       
-      const mockResponse = {
-        success: true,
-        data: paginatedData,
-        meta: {
-          current_page: page,
-          last_page: Math.ceil(mockNotifications.length / per_page),
-          per_page: per_page,
-          total: mockNotifications.length
-        }
-      }
-      
-      return NextResponse.json(mockResponse)
     }
   } catch (error) {
     console.error("Error fetching notifications:", error)
