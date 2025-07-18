@@ -26,7 +26,8 @@ import {
   Waypoints, 
   LayoutTemplate,
   TextSelect,
-  Pocket
+  Pocket,
+  Ticket
 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { motion, AnimatePresence } from "framer-motion"
@@ -45,6 +46,7 @@ const navigation: NavigationItem[] = [
   { name: "Categories", href: "/catalog/categories", icon: ShoppingBag },
   { name: "Brands", href: "/catalog/brands", icon: Pocket  },
   { name: "Orders", href: "/orders", icon: ShoppingCart },
+  { name: "Coupons", href: "/coupons", icon: Ticket },
   { name: "Home Sections", href: "/home-sections",icon: TextSelect  },
   { name: "Featured Sections", href: "/featured-sections", icon: LayoutTemplate  },
   { name: "Banners", href: "/banners", icon: Waypoints  },

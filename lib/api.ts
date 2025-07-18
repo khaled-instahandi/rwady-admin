@@ -197,6 +197,7 @@ export interface PaginationParams {
   brand_id?: number | string
   availability?: any
   type?: any
+  is_active?: boolean
   price_min?: number | string
   price_max?: number | string
   stock_status?: string
@@ -301,6 +302,53 @@ export interface OrderResponse {
   data: Order
 }
 
+// Coupon interfaces
+export interface Coupon {
+  id: number
+  code: string
+  type: "percentage" | "fixed"
+  amount: number
+  is_active: boolean
+  start_date: string
+  end_date: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CouponsResponse {
+  success: boolean
+  data: Coupon[]
+  meta: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+}
+
+export interface CouponResponse {
+  success: boolean
+  data: Coupon
+}
+
+export interface CreateCouponData {
+  code: string
+  type: "percentage" | "fixed"
+  amount: number
+  is_active: boolean
+  start_date: string
+  end_date: string
+}
+
+export interface UpdateCouponData {
+  code?: string
+  type?: "percentage" | "fixed"
+  amount?: number
+  is_active?: boolean
+  start_date?: string
+  end_date?: string
+}
+
 class ApiService {
   private getAuthHeaders() {
     let token = null
@@ -375,6 +423,9 @@ class ApiService {
     }
     if (params.type !== undefined && params.type !== null) {
       queryParams.append("type", params.type.toString())
+    }
+    if (params.is_active !== undefined && params.is_active !== null) {
+      queryParams.append("is_active", params.is_active.toString())
     }
     const queryString = queryParams.toString()
     return queryString ? `?${queryString}` : ""
@@ -721,6 +772,27 @@ class ApiService {
         data: null,
       }
     }
+  }
+
+  // Coupons API methods
+  async getCoupons(params?: PaginationParams): Promise<ApiResponse<Coupon[]>> {
+    return this.get("/admin/coupons", params)
+  }
+
+  async getCoupon(id: number): Promise<ApiResponse<Coupon>> {
+    return this.get(`/admin/coupons/${id}`)
+  }
+
+  async createCoupon(data: CreateCouponData): Promise<ApiResponse<Coupon>> {
+    return this.post("/admin/coupons", data)
+  }
+
+  async updateCoupon(id: number, data: UpdateCouponData): Promise<ApiResponse<Coupon>> {
+    return this.put(`/admin/coupons/${id}`, data)
+  }
+
+  async deleteCoupon(id: number): Promise<ApiResponse<any>> {
+    return this.delete(`/admin/coupons/${id}`)
   }
 }
 
