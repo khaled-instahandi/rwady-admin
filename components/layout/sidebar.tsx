@@ -27,7 +27,8 @@ import {
   LayoutTemplate,
   TextSelect,
   Pocket,
-  Ticket
+  Ticket,
+  Bell
 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { motion, AnimatePresence } from "framer-motion"
@@ -50,6 +51,7 @@ const navigation: NavigationItem[] = [
   { name: "Home Sections", href: "/home-sections",icon: TextSelect  },
   { name: "Featured Sections", href: "/featured-sections", icon: LayoutTemplate  },
   { name: "Banners", href: "/banners", icon: Waypoints  },
+  { name: "Notifications", href: "/notifications", icon: Bell },
 
   // { name: "Marketing", href: "/marketing", icon: BarChart3 },
   // { name: "Reports", href: "/reports", icon: BarChart3 },

@@ -2,10 +2,15 @@
 
 import { Bell, HelpCircle, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth/auth-provider"
+import { useNotifications } from "@/components/providers/notification-provider"
+import { useRouter } from "next/navigation"
 
 export function Header() {
   const { userPhone, userRole } = useAuth()
+  const { unreadCount } = useNotifications()
+  const router = useRouter()
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
@@ -19,8 +24,18 @@ export function Header() {
           Get Help
         </Button>
 
-        <Button variant="ghost" size="sm">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="relative"
+          onClick={() => router.push('/notifications')}
+        >
           <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Badge>
+          )}
         </Button>
 
         <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 rounded-lg">

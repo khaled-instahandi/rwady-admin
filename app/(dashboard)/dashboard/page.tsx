@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, Package, ShoppingCart, Users, DollarSign } from "lucide-react"
+import MaintenanceStatusCard from "@/components/ui/maintenance-status-card"
 
 export default function DashboardPage() {
   return (
@@ -9,6 +10,9 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Greetings!</h1>
         <p className="text-gray-600">{"Let's take a look at what's happening in your store right now."}</p>
       </div>
+
+      {/* Maintenance Status */}
+      {/* <MaintenanceStatusCard /> */}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

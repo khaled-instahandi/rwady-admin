@@ -796,216 +796,20 @@ class ApiService {
   }
 }
 
-export const apiService = new ApiService()
-
-// Mock data for development/testing
-export const mockCategories: Category[] = [
-  {
-    id: 1,
-    name: { ar: "الملابس", en: "Clothing" },
-    description: { ar: "جميع أنواع الملابس", en: "All types of clothing" },
-    parent_id: null,
-    image: null,
-    image_url: null,
-    availability: 1,
-    products_count: 24,
-    created_at: "2025-06-16 22:27:03",
-    updated_at: "2025-06-16 22:27:03",
-    children: [
-      {
-        id: 2,
-        name: { ar: "ملابس رجالية", en: "Men's Clothing" },
-        description: { ar: "ملابس للرجال", en: "Clothing for men" },
-        parent_id: 1,
-        image: null,
-        image_url: null,
-        availability: 1,
-        products_count: 12,
-        created_at: "2025-06-16 22:27:03",
-        updated_at: "2025-06-16 22:27:03",
-      },
-      {
-        id: 3,
-        name: { ar: "ملابس نسائية", en: "Women's Clothing" },
-        description: { ar: "ملابس للنساء", en: "Clothing for women" },
-        parent_id: 1,
-        image: null,
-        image_url: null,
-        availability: 1,
-        products_count: 12,
-        created_at: "2025-06-16 22:27:03",
-        updated_at: "2025-06-16 22:27:03",
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: { ar: "الإلكترونيات", en: "Electronics" },
-    description: { ar: "أجهزة إلكترونية", en: "Electronic devices" },
-    parent_id: null,
-    image: null,
-    image_url: null,
-    availability: 1,
-    products_count: 18,
-    created_at: "2025-06-16 22:27:03",
-    updated_at: "2025-06-16 22:27:03",
-    children: [
-      {
-        id: 5,
-        name: { ar: "هواتف ذكية", en: "Smartphones" },
-        description: { ar: "هواتف ذكية وملحقاتها", en: "Smartphones and accessories" },
-        parent_id: 4,
-        image: null,
-        image_url: null,
-        availability: 1,
-        products_count: 8,
-        created_at: "2025-06-16 22:27:03",
-        updated_at: "2025-06-16 22:27:03",
-      },
-      {
-        id: 6,
-        name: { ar: "أجهزة كمبيوتر", en: "Computers" },
-        description: { ar: "أجهزة كمبيوتر وملحقاتها", en: "Computers and accessories" },
-        parent_id: 4,
-        image: null,
-        image_url: null,
-        availability: 1,
-        products_count: 10,
-        created_at: "2025-06-16 22:27:03",
-        updated_at: "2025-06-16 22:27:03",
-      },
-    ],
-  },
-]
-
-// export const mockProducts: Product[] = [
-//   {
-//     id: 1,
-//     sku: "AEC01",
-//     name: { ar: "صانع الثلج AEC01", en: "AEC ICE MAKER AEC01" },
-//     description: { ar: "صانع ثلج عالي الجودة", en: "High quality ice maker" },
-//     price: 299.99,
-//     price_after_discount: 249.99,
-//     availability: true,
-//     stock: 15,
-//     stock_unlimited: false,
-//     minimum_purchase: 1,
-//     maximum_purchase: 999,
-//     requires_shipping: true,
-//     is_recommended: false,
-//     colors: [],
-//     related_products: [],
-//     media: [],
-//     created_at: "2025-06-16 22:27:03",
-//     updated_at: "2025-06-16 22:27:03",
-//   },
-//   {
-//     id: 2,
-//     sku: "AEC02",
-//     name: { ar: "مبرد المياه وصانع الثلج AEC02", en: "AEC WATER COOLER & ICE MAKER AEC02" },
-//     description: { ar: "مبرد مياه مع صانع ثلج", en: "Water cooler with ice maker" },
-//     price: 499.99,
-//     availability: true,
-//     stock: 8,
-//     stock_unlimited: false,
-//     minimum_purchase: 1,
-//     maximum_purchase: 999,
-//     requires_shipping: true,
-//     is_recommended: true,
-//     colors: [],
-//     related_products: [],
-//     media: [],
-//     created_at: "2025-06-16 22:27:03",
-//     updated_at: "2025-06-16 22:27:03",
-//   },
-
-// ]
-
-// Helper function to get auth headers
-const getAuthHeaders = () => {
-  let token = null
-  if (typeof window !== "undefined") {
-    token = localStorage.getItem("auth_token")
-  }
-
-  return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-  }
-}
-
-// Export the ordersApi as part of the apiService
-export const ordersApi = {
-  async getOrders(params: {
-    page?: number
-    search?: string
-    sort_field?: string
-    sort_order?: "asc" | "desc"
-    status?: string
-    payment_status?: string
-  }): Promise<OrdersResponse> {
-    const searchParams = new URLSearchParams()
-
-    if (params.page) searchParams.append("page", params.page.toString())
-    if (params.search) searchParams.append("search", params.search)
-    if (params.status && params.status !== "all") searchParams.append("status", params.status)
-    if (params.payment_status && params.payment_status !== "all") searchParams.append("payment_status", params.payment_status)
-    if (params.sort_field) searchParams.append("sort_field", params.sort_field)
-    if (params.sort_order) searchParams.append("sort_order", params.sort_order)
-
-    const response = await fetch(`${API_BASE_URL}/admin/orders?${searchParams}`, {
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في تحميل الطلبات")
-    }
-
-    return response.json()
-  },
-
-  async getOrder(id: string): Promise<OrderResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في تحميل تفاصيل الطلب")
-    }
-
-    return response.json()
-  },
-
-  async updateOrderStatus(id: number, status: string): Promise<OrderResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/orders/${id}/status`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ status }),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في تحديث حالة الطلب")
-    }
-
-    return response.json()
-  }
-}
-
-// Settings Interface
-export interface Setting {
+// Notifications Interface
+export interface Notification {
   id: number
-  key: string
-  value: string
-  type: "text" | "html" | "float" | "boolean" | "json"
-  allow_null: boolean
-  is_setting: boolean
+  title: string
+  message: string
+  type: "info" | "warning" | "success" | "error"
+  read_at: string | null
   created_at: string
   updated_at: string
 }
 
-export interface SettingsResponse {
+export interface NotificationsResponse {
   success: boolean
-  data: Setting[]
+  data: Notification[]
   meta?: {
     current_page: number
     last_page: number
@@ -1014,120 +818,44 @@ export interface SettingsResponse {
   }
 }
 
-export interface SettingResponse {
+export interface NotificationResponse {
   success: boolean
-  data: Setting
+  data: Notification
 }
 
-// Settings API
-export const settingsApi = {
-  async getAll(params?: { page?: number; per_page?: number }): Promise<SettingsResponse> {
+// Notifications API
+export const notificationsApi = {
+  async getAll(params?: { page?: number; per_page?: number }): Promise<NotificationsResponse> {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.append("page", params.page.toString())
     if (params?.per_page) searchParams.append("per_page", params.per_page.toString())
-    
-    const response = await fetch(`${API_BASE_URL}/admin/settings?${searchParams.toString()}`, {
+
+    const response = await fetch(`/api/notifications?${searchParams.toString()}`, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
     })
 
     if (!response.ok) {
-      throw new Error("فشل في تحميل الإعدادات")
+      throw new Error("فشل في جلب الإشعارات")
     }
 
     return response.json()
   },
 
-  async getById(id: number): Promise<SettingResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/settings/${id}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في تحميل الإعداد")
-    }
-
-    return response.json()
-  },
-
-  async getByKey(key: string): Promise<SettingResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/settings/${key}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في تحميل الإعداد")
-    }
-
-    return response.json()
-  },
-
-  async create(setting: Omit<Setting, 'id' | 'created_at' | 'updated_at'>): Promise<SettingResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/settings`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(setting),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في إنشاء الإعداد")
-    }
-
-    return response.json()
-  },
-
-  async updateById(id: number, value: string): Promise<SettingResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/settings/${id}`, {
+  async markAsRead(id: number): Promise<NotificationResponse> {
+    const response = await fetch(`/api/notifications/${id}/read`, {
       method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ value }),
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
     })
 
     if (!response.ok) {
-      throw new Error("فشل في تحديث الإعداد")
-    }
-
-    return response.json()
-  },
-
-  async updateByKey(key: string, value: string): Promise<SettingResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/settings/${key}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ value }),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في تحديث الإعداد")
-    }
-
-    return response.json()
-  },
-
-  async bulkUpdate(settings: { key: string; value: string }[]): Promise<SettingsResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/settings`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ settings }),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في التحديث الجماعي للإعدادات")
-    }
-
-    return response.json()
-  },
-
-  async delete(id: number): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE_URL}/admin/settings/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error("فشل في حذف الإعداد")
+      throw new Error("فشل في تمييز الإشعار كمقروء")
     }
 
     return response.json()
