@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { requestNotificationPermission, onMessageListener, showMaintenanceNotification } from '@/lib/firebase'
 import { notificationsApi, type Notification } from '@/lib/api'
-import { useMaintenanceMode } from '@/hooks/use-maintenance-mode'
 import { toast } from 'sonner'
 
 interface NotificationContextType {
@@ -36,7 +35,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [fcmToken, setFcmToken] = useState<string | null>(null)
   
   // Use maintenance mode hook
-  const { isMaintenanceMode } = useMaintenanceMode()
 
   const unreadCount = notifications.filter(n => !n.read_at).length
 
@@ -67,10 +65,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         console.log('Received foreground message:', payload)
         
         // Show toast notification
-        toast.success(payload.notification?.title || 'إشعار جديد', {
-          description: payload.notification?.body || 'لديك إشعار جديد',
+        toast.success(payload.notification?.title || 'New Notification', {
+          description: payload.notification?.body || 'You have a new notification',
           action: {
-            label: 'عرض',
+            label: 'View',
             onClick: () => {
               // Navigate to notifications page or handle click
               window.location.href = '/notifications'
@@ -96,11 +94,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const refreshNotifications = async () => {
     try {
       setLoading(true)
-      const response = await notificationsApi.getAll({ per_page: 50 })
+      const response = await notificationsApi.getAll({ 
+        per_page: 100,
+        page: 1 
+      })
       setNotifications(response.data || [])
     } catch (error) {
       console.error('Error fetching notifications:', error)
-      toast.error('فشل في جلب الإشعارات')
+      toast.error('Failed to load notifications')
     } finally {
       setLoading(false)
     }
@@ -116,15 +117,27 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             : notification
         )
       )
-      toast.success('تم تمييز الإشعار كمقروء')
+      toast.success('Notification marked as read')
     } catch (error) {
       console.error('Error marking notification as read:', error)
-      toast.error('فشل في تمييز الإشعار كمقروء')
+      toast.error('Failed to mark notification as read')
     }
   }
 
-  const clearAll = () => {
-    setNotifications([])
+  const clearAll = async () => {
+    try {
+      await notificationsApi.markAllAsRead()
+      setNotifications(prev => 
+        prev.map(n => ({ 
+          ...n, 
+          read_at: n.read_at || new Date().toISOString() 
+        }))
+      )
+      toast.success('All notifications marked as read')
+    } catch (error) {
+      console.error('Error clearing all notifications:', error)
+      toast.error('Failed to mark all notifications as read')
+    }
   }
 
   const value: NotificationContextType = {

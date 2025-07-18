@@ -99,4 +99,19 @@ export const showMaintenanceNotification = (isMaintenanceMode: boolean) => {
   }
 };
 
+// Function to get stored device token
+export const getStoredDeviceToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('device_token');
+  }
+  return null;
+};
+
+// Function to clear stored device token
+export const clearStoredDeviceToken = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('device_token');
+  }
+};
+
 export { app, analytics, messaging };

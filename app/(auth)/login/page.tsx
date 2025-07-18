@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Phone, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { requestNotificationPermission } from "@/lib/firebase"
 
 export default function LoginPage() {
   const [step, setStep] = useState<"phone" | "otp">("phone")
@@ -18,7 +19,24 @@ export default function LoginPage() {
   const [role, setRole] = useState<"admin" | "customer">("admin")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [deviceToken, setDeviceToken] = useState<string | null>(null)
   const router = useRouter()
+
+  // Get Firebase device token on component mount
+  useEffect(() => {
+    const getDeviceToken = async () => {
+      try {
+        const token = await requestNotificationPermission()
+        setDeviceToken(token)
+        console.log('Firebase device token obtained:', token)
+      } catch (error) {
+        console.error('Error getting device token:', error)
+        // Continue without token - don't block login
+      }
+    }
+    
+    getDeviceToken()
+  }, [])
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,15 +44,26 @@ export default function LoginPage() {
     setError("")
 
     try {
+      // Prepare login payload
+      const loginPayload: any = {
+        phone,
+        role: "admin",
+      }
+
+      // Add device token if available
+      if (deviceToken) {
+        loginPayload.device_token = deviceToken
+        console.log('Sending login request with device token')
+      } else {
+        console.log('Sending login request without device token')
+      }
+
       const response = await fetch("https://rwady-backend.ahmed-albakor.com/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          phone,
-          role: "admin",
-        }),
+        body: JSON.stringify(loginPayload),
       })
 
       const data = await response.json()
@@ -57,15 +86,26 @@ export default function LoginPage() {
     setError("")
 
     try {
+      // Prepare OTP verification payload
+      const otpPayload: any = {
+        phone,
+        otp,
+      }
+
+      // Add device token if available
+      if (deviceToken) {
+        otpPayload.device_token = deviceToken
+        console.log('Sending OTP verification with device token')
+      } else {
+        console.log('Sending OTP verification without device token')
+      }
+
       const response = await fetch("https://rwady-backend.ahmed-albakor.com/api/auth/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          phone,
-          otp,
-        }),
+        body: JSON.stringify(otpPayload),
       })
 
       const data = await response.json()
@@ -75,6 +115,11 @@ export default function LoginPage() {
         localStorage.setItem("auth_token", data.data.token)
         localStorage.setItem("user_role", role)
         localStorage.setItem("user_phone", phone)
+        
+        // Store device token in localStorage for future use
+        if (deviceToken) {
+          localStorage.setItem("device_token", deviceToken)
+        }
 
         // Set cookie for server-side middleware authentication
         document.cookie = `auth_token=${data.data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
@@ -109,6 +154,15 @@ export default function LoginPage() {
           {error && (
             <Alert className="mb-4 border-red-200 bg-red-50">
               <AlertDescription className="text-red-800">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Firebase Status Indicator */}
+          {deviceToken === null && (
+            <Alert className="mb-4 border-blue-200 bg-blue-50">
+              <AlertDescription className="text-blue-800">
+                Setting up notifications... This may take a moment.
+              </AlertDescription>
             </Alert>
           )}
 
