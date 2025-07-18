@@ -43,12 +43,12 @@ import { settingsApi, type Setting } from "@/lib/api"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 const settingCategories = {
-  app: { label: "تطبيق الموبايل", icon: Smartphone, color: "bg-blue-500" },
-  social_media: { label: "وسائل التواصل الاجتماعي", icon: Share2, color: "bg-purple-500" },
-  pages: { label: "الصفحات", icon: FileText, color: "bg-green-500" },
-  contacts: { label: "معلومات الاتصال", icon: Phone, color: "bg-orange-500" },
-  shipping: { label: "الشحن", icon: Truck, color: "bg-yellow-500" },
-  general: { label: "عام", icon: Settings, color: "bg-gray-500" }
+  app: { label: "Mobile App", icon: Smartphone, color: "bg-blue-500" },
+  social_media: { label: "Social Media", icon: Share2, color: "bg-purple-500" },
+  pages: { label: "Pages", icon: FileText, color: "bg-green-500" },
+  contacts: { label: "Contact Information", icon: Phone, color: "bg-orange-500" },
+  shipping: { label: "Shipping", icon: Truck, color: "bg-yellow-500" },
+  general: { label: "General", icon: Settings, color: "bg-gray-500" }
 }
 
 const typeIcons = {
@@ -91,7 +91,7 @@ export default function SettingsPage() {
       setSettings(response.data || [])
     } catch (error) {
       console.error("Error fetching settings:", error)
-      toast.error("خطأ في تحميل الإعدادات")
+      toast.error("Error loading settings")
     } finally {
       setLoading(false)
     }
@@ -147,7 +147,7 @@ export default function SettingsPage() {
     try {
       await settingsApi.updateById(id, value)
       setSettings(prev => prev.map(s => s.id === id ? { ...s, value } : s))
-      toast.success("تم تحديث الإعداد بنجاح")
+      toast.success("Setting updated successfully")
       setEditingSettings(prev => {
         const updated = { ...prev }
         delete updated[id]
@@ -155,7 +155,7 @@ export default function SettingsPage() {
       })
     } catch (error) {
       console.error("Error updating setting:", error)
-      toast.error("خطأ في تحديث الإعداد")
+      toast.error("Error updating setting")
     }
   }
 
@@ -163,10 +163,10 @@ export default function SettingsPage() {
     try {
       await settingsApi.updateByKey(key, value)
       setSettings(prev => prev.map(s => s.key === key ? { ...s, value } : s))
-      toast.success("تم تحديث الإعداد بنجاح")
+      toast.success("Setting updated successfully")
     } catch (error) {
       console.error("Error updating setting by key:", error)
-      toast.error("خطأ في تحديث الإعداد")
+      toast.error("Error updating setting")
     }
   }
 
@@ -181,47 +181,47 @@ export default function SettingsPage() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    toast.success("تم تصدير الإعدادات بنجاح")
+    toast.success("Settings exported successfully")
   }
 
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      toast.success("تم نسخ النص إلى الحافظة")
+      toast.success("Text copied to clipboard")
     } catch (error) {
-      toast.error("فشل في نسخ النص")
+      toast.error("Failed to copy text")
     }
   }
 
   const handleBulkEdit = async (bulkSettings: {key: string, value: string}[]) => {
     try {
       await settingsApi.bulkUpdate(bulkSettings)
-      toast.success("تم تحديث الإعدادات بنجاح")
+      toast.success("Settings updated successfully")
       fetchSettings()
       setIsBulkEditOpen(false)
       setSelectedSettingsForBulk([])
     } catch (error) {
       console.error("Error bulk updating settings:", error)
-      toast.error("خطأ في تحديث الإعدادات")
+      toast.error("Error updating settings")
     }
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا الإعداد؟")) return
+    if (!confirm("Are you sure you want to delete this setting?")) return
 
     try {
       await settingsApi.delete(id)
       setSettings(prev => prev.filter(s => s.id !== id))
-      toast.success("تم حذف الإعداد بنجاح")
+      toast.success("Setting deleted successfully")
     } catch (error) {
       console.error("Error deleting setting:", error)
-      toast.error("خطأ في حذف الإعداد")
+      toast.error("Error deleting setting")
     }
   }
 
   const handleAdd = async () => {
     if (!newSetting.key || !newSetting.value) {
-      toast.error("يرجى ملء جميع الحقول المطلوبة")
+      toast.error("Please fill all required fields")
       return
     }
 
@@ -235,7 +235,7 @@ export default function SettingsPage() {
       })
       
       setSettings(prev => [response.data, ...prev])
-      toast.success("تم إضافة الإعداد بنجاح")
+      toast.success("Setting added successfully")
       setIsAddDialogOpen(false)
       setNewSetting({
         key: "",
@@ -246,7 +246,7 @@ export default function SettingsPage() {
       })
     } catch (error) {
       console.error("Error adding setting:", error)
-      toast.error("خطأ في إضافة الإعداد")
+      toast.error("Error adding setting")
     }
   }
 
@@ -268,7 +268,7 @@ export default function SettingsPage() {
               className="h-6 text-xs"
             >
               <Copy className="h-3 w-3 mr-1" />
-              نسخ HTML
+              Copy HTML
             </Button>
           </div>
         )
@@ -285,7 +285,7 @@ export default function SettingsPage() {
             className="h-6 text-xs"
           >
             <Copy className="h-3 w-3 mr-1" />
-            نسخ
+            Copy
           </Button>
         </div>
       )
@@ -326,7 +326,7 @@ export default function SettingsPage() {
             [setting.id]: { ...setting, value: e.target.value }
           }))}
           className="min-h-[80px]"
-          placeholder={`أدخل ${setting.type === "float" ? "رقم" : "نص"}...`}
+          placeholder={`Enter ${setting.type === "float" ? "number" : "text"}...`}
         />
       )
     }
@@ -339,7 +339,7 @@ export default function SettingsPage() {
           [setting.id]: { ...setting, value: e.target.value }
         }))}
         className="min-h-[100px] font-mono text-sm"
-        placeholder="أدخل JSON..."
+        placeholder="Enter JSON..."
       />
     )
   }
@@ -349,7 +349,7 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <div className="flex items-center gap-2">
           <Settings className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">إدارة الإعدادات</h1>
+          <h1 className="text-2xl font-bold">Settings Management</h1>
         </div>
         <div className="grid gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -469,10 +469,9 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Settings className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">إدارة الإعدادات</h1>
-          <Badge variant="secondary">{settings.length} إعداد</Badge>
+          <h1 className="text-2xl font-bold">Settings Management</h1>
+          <Badge variant="secondary">{settings.length} settings</Badge>
         </div>
-        
         <div className="flex items-center gap-2">
           <Button 
             variant="outline" 
@@ -480,21 +479,21 @@ export default function SettingsPage() {
             onClick={exportSettings}
           >
             <Download className="h-4 w-4 mr-2" />
-            تصدير JSON
+            export JSON
           </Button>
           
           <Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
                 <Edit className="h-4 w-4 mr-2" />
-                تعديل جماعي
+                Bulk Edit
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>التعديل الجماعي للإعدادات</DialogTitle>
+                <DialogTitle>Bulk Edit Settings</DialogTitle>
                 <DialogDescription>
-                  يمكنك تعديل عدة إعدادات في نفس الوقت
+                  You can edit multiple settings at the same time
                 </DialogDescription>
               </DialogHeader>
               <BulkEditForm 
@@ -509,28 +508,28 @@ export default function SettingsPage() {
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                إضافة إعداد
+                Add Setting
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>إضافة إعداد جديد</DialogTitle>
+                <DialogTitle>Add New Setting</DialogTitle>
                 <DialogDescription>
-                  أضف إعداد جديد إلى النظام
+                  Add a new setting to the system
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="key">المفتاح</Label>
+                  <Label htmlFor="key">Key</Label>
                   <Input
                     id="key"
                     value={newSetting.key || ""}
                     onChange={(e) => setNewSetting(prev => ({ ...prev, key: e.target.value }))}
-                    placeholder="مثال: app.version"
+                    placeholder="Example: app.version"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="type">النوع</Label>
+                  <Label htmlFor="type">Type</Label>
                   <Select
                     value={newSetting.type || "text"}
                     onValueChange={(value) => setNewSetting(prev => ({ ...prev, type: value as Setting["type"] }))}
@@ -539,16 +538,16 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="text">نص</SelectItem>
+                      <SelectItem value="text">Text</SelectItem>
                       <SelectItem value="html">HTML</SelectItem>
-                      <SelectItem value="float">رقم عشري</SelectItem>
-                      <SelectItem value="boolean">منطقي</SelectItem>
+                      <SelectItem value="float">Float</SelectItem>
+                      <SelectItem value="boolean">Boolean</SelectItem>
                       <SelectItem value="json">JSON</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="value">القيمة</Label>
+                  <Label htmlFor="value">Value</Label>
                   {newSetting.type === "html" ? (
                     <RichTextEditor
                       value={newSetting.value || ""}
@@ -559,7 +558,7 @@ export default function SettingsPage() {
                       id="value"
                       value={newSetting.value || ""}
                       onChange={(e) => setNewSetting(prev => ({ ...prev, value: e.target.value }))}
-                      placeholder="أدخل القيمة..."
+                      placeholder="Enter value..."
                     />
                   )}
                 </div>
@@ -569,14 +568,14 @@ export default function SettingsPage() {
                     checked={newSetting.allow_null || false}
                     onCheckedChange={(checked) => setNewSetting(prev => ({ ...prev, allow_null: checked }))}
                   />
-                  <Label htmlFor="allow_null">السماح بالقيم الفارغة</Label>
+                  <Label htmlFor="allow_null">Allow null values</Label>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    إلغاء
+                    Cancel
                   </Button>
                   <Button onClick={handleAdd}>
-                    إضافة
+                    Add
                   </Button>
                 </div>
               </div>
@@ -593,7 +592,7 @@ export default function SettingsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="البحث في الإعدادات..."
+                  placeholder="Search in settings..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -602,10 +601,10 @@ export default function SettingsPage() {
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="اختر الفئة" />
+                <SelectValue placeholder="Choose category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">جميع الفئات</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 {Object.entries(settingCategories).map(([key, category]) => (
                   <SelectItem key={key} value={key}>{category.label}</SelectItem>
                 ))}
@@ -613,26 +612,26 @@ export default function SettingsPage() {
             </Select>
             <Select value={selectedType} onValueChange={setSelectedType}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="اختر النوع" />
+                <SelectValue placeholder="Choose type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">جميع الأنواع</SelectItem>
-                <SelectItem value="text">نص</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="text">Text</SelectItem>
                 <SelectItem value="html">HTML</SelectItem>
-                <SelectItem value="float">رقم عشري</SelectItem>
-                <SelectItem value="boolean">منطقي</SelectItem>
+                <SelectItem value="float">Float</SelectItem>
+                <SelectItem value="boolean">Boolean</SelectItem>
                 <SelectItem value="json">JSON</SelectItem>
               </SelectContent>
             </Select>
             
             <Select value={sortBy} onValueChange={(value) => setSortBy(value as "key" | "updated_at" | "created_at")}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="ترتيب حسب" />
+                <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="key">المفتاح</SelectItem>
-                <SelectItem value="updated_at">آخر تحديث</SelectItem>
-                <SelectItem value="created_at">تاريخ الإنشاء</SelectItem>
+                <SelectItem value="key">Key</SelectItem>
+                <SelectItem value="updated_at">Last Updated</SelectItem>
+                <SelectItem value="created_at">Creation Date</SelectItem>
               </SelectContent>
             </Select>
             
@@ -642,7 +641,7 @@ export default function SettingsPage() {
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
               className="w-full md:w-auto"
             >
-              {sortOrder === "asc" ? "تصاعدي ↑" : "تنازلي ↓"}
+              {sortOrder === "asc" ? "Ascending ↑" : "Descending ↓"}
             </Button>
           </div>
         </CardContent>
@@ -663,7 +662,7 @@ export default function SettingsPage() {
                   <div>
                     <CardTitle className="text-lg">{category.label}</CardTitle>
                     <CardDescription>
-                      {categorySettings.length} إعداد في هذه الفئة
+                      {categorySettings.length} setting in this category
                     </CardDescription>
                   </div>
                 </div>
@@ -693,7 +692,7 @@ export default function SettingsPage() {
                                 {setting.type}
                               </Badge>
                               {!setting.allow_null && (
-                                <Badge variant="destructive">مطلوب</Badge>
+                                <Badge variant="destructive">Required</Badge>
                               )}
                             </div>
                             
@@ -702,11 +701,11 @@ export default function SettingsPage() {
                             </div>
                             
                             <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                              <span>آخر تحديث: {new Date(setting.updated_at).toLocaleDateString("ar")}</span>
-                              <span>إنشئ في: {new Date(setting.created_at).toLocaleDateString("ar")}</span>
+                              <span>Last updated: {new Date(setting.updated_at).toLocaleDateString("en")}</span>
+                              <span>Created: {new Date(setting.created_at).toLocaleDateString("en")}</span>
                               <span>ID: {setting.id}</span>
                               {setting.allow_null && (
-                                <Badge variant="outline" className="text-xs">يقبل null</Badge>
+                                <Badge variant="outline" className="text-xs">Allows null</Badge>
                               )}
                             </div>
                           </div>
@@ -773,11 +772,11 @@ export default function SettingsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Settings className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد إعدادات</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No settings found</h3>
             <p className="text-gray-500 text-center">
               {searchTerm || selectedCategory !== "all" || selectedType !== "all"
-                ? "لا توجد إعدادات تطابق معايير البحث"
-                : "لم يتم العثور على أي إعدادات"}
+                ? "No settings match the search criteria"
+                : "No settings were found"}
             </p>
           </CardContent>
         </Card>
@@ -817,7 +816,7 @@ function BulkEditForm({
   const handleSave = () => {
     const validSettings = bulkSettings.filter(s => s.key && s.value)
     if (validSettings.length === 0) {
-      toast.error("يرجى إضافة إعداد واحد على الأقل")
+      toast.error("Please add at least one setting")
       return
     }
     onSave(validSettings)
@@ -829,13 +828,13 @@ function BulkEditForm({
         {bulkSettings.map((setting, index) => (
           <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">
             <div className="flex-1">
-              <Label className="text-xs">المفتاح</Label>
+              <Label className="text-xs">Key</Label>
               <Select
                 value={setting.key}
                 onValueChange={(value) => updateSetting(index, "key", value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="اختر الإعداد" />
+                  <SelectValue placeholder="Choose setting" />
                 </SelectTrigger>
                 <SelectContent>
                   {settings.map((s) => (
@@ -847,11 +846,11 @@ function BulkEditForm({
               </Select>
             </div>
             <div className="flex-1">
-              <Label className="text-xs">القيمة الجديدة</Label>
+              <Label className="text-xs">New Value</Label>
               <Input
                 value={setting.value}
                 onChange={(e) => updateSetting(index, "value", e.target.value)}
-                placeholder="أدخل القيمة الجديدة"
+                placeholder="Enter new value"
               />
             </div>
             <Button
@@ -870,15 +869,15 @@ function BulkEditForm({
       <div className="flex justify-between">
         <Button variant="outline" onClick={addSetting}>
           <Plus className="h-4 w-4 mr-2" />
-          إضافة إعداد آخر
+          Add Another Setting
         </Button>
         
         <div className="flex gap-2">
           <Button variant="outline" onClick={onCancel}>
-            إلغاء
+            Cancel
           </Button>
           <Button onClick={handleSave}>
-            حفظ التغييرات
+            Save Changes
           </Button>
         </div>
       </div>
