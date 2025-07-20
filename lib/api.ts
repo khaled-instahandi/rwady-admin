@@ -977,9 +977,10 @@ export const ordersApi = {
   },
 
   async updateOrderStatus(id: number, status: string): Promise<OrderResponse> {
-    const response = await fetch(`${API_BASE_URL}/admin/orders/${id}/status`, {
+    const response = await fetch(`${API_BASE_URL}/admin/orders/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
+
       body: JSON.stringify({ status }),
     })
 

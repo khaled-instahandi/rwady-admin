@@ -85,6 +85,9 @@ export default function OrdersPage() {
         sort_direction: "desc" as "asc" | "desc"
     })
 
+    // Status update state
+    const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+
     // Apply debounce to search input
     const debouncedSearch = useDebounce(searchInput, 500)
 
@@ -129,8 +132,11 @@ export default function OrdersPage() {
     const getStatusBadge = (status: string) => {
         const statusConfig = {
             pending: { label: "Pending", variant: "secondary" as const, icon: Clock },
+            in_progress: { label: "In Progress", variant: "default" as const, icon: Package },
             processing: { label: "Processing", variant: "default" as const, icon: Package },
+            shipping: { label: "Shipping", variant: "outline" as const, icon: Truck },
             shipped: { label: "Shipped", variant: "outline" as const, icon: Truck },
+            completed: { label: "Completed", variant: "default" as const, icon: CheckCircle },
             delivered: { label: "Delivered", variant: "default" as const, icon: CheckCircle },
             cancelled: { label: "Cancelled", variant: "destructive" as const, icon: XCircle }
         }
@@ -201,6 +207,50 @@ export default function OrdersPage() {
         setSearchInput("")
         setCurrentPage(1)
     }
+
+    // Handle status update
+    const handleStatusUpdate = async (orderId: number, newStatus: string) => {
+        setUpdatingOrderId(orderId)
+        try {
+            await ordersApi.updateOrderStatus(orderId, newStatus)
+            
+            // Update the order in local state
+            setOrders(prevOrders => 
+                prevOrders.map(order => 
+                    order.id === orderId 
+                        ? { ...order, status: newStatus }
+                        : order
+                )
+            )
+
+            toast({
+                title: "Success",
+                description: "Order status updated successfully",
+                variant: "default",
+            })
+        } catch (error) {
+            console.error("Error updating order status:", error)
+            toast({
+                title: "Error",
+                description: "Failed to update order status",
+                variant: "destructive",
+            })
+        } finally {
+            setUpdatingOrderId(null)
+        }
+    }
+
+    // Get available status options
+    const getStatusOptions = () => [
+        { value: "pending", label: "Pending" },
+        { value: "in_progress", label: "In Progress" },
+        { value: "processing", label: "Processing" },
+        { value: "shipping", label: "Shipping" },
+        { value: "shipped", label: "Shipped" },
+        { value: "completed", label: "Completed" },
+        { value: "delivered", label: "Delivered" },
+        { value: "cancelled", label: "Cancelled" }
+    ]
 
     return (
         <div className="space-y-6">
@@ -297,8 +347,11 @@ export default function OrdersPage() {
                                 <SelectContent>
                                     <SelectItem value="all">All Statuses</SelectItem>
                                     <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="in_progress">In Progress</SelectItem>
                                     <SelectItem value="processing">Processing</SelectItem>
+                                    <SelectItem value="shipping">Shipping</SelectItem>
                                     <SelectItem value="shipped">Shipped</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
                                     <SelectItem value="delivered">Delivered</SelectItem>
                                     <SelectItem value="cancelled">Cancelled</SelectItem>
                                 </SelectContent>
@@ -401,7 +454,33 @@ export default function OrdersPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            {getStatusBadge(order.status)}
+                                            <Select 
+                                                value={order.status} 
+                                                onValueChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
+                                                disabled={updatingOrderId === order.id}
+                                            >
+                                                <SelectTrigger className="w-[140px] h-auto p-1">
+                                                    <SelectValue>
+                                                        {updatingOrderId === order.id ? (
+                                                            <div className="flex items-center gap-2 px-2 py-1">
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                                <span className="text-xs">Updating...</span>
+                                                            </div>
+                                                        ) : (
+                                                            getStatusBadge(order.status)
+                                                        )}
+                                                    </SelectValue>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {getStatusOptions().map((option) => (
+                                                        <SelectItem key={option.value} value={option.value}>
+                                                            <div className="flex items-center gap-2">
+                                                                <span>{option.label}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </TableCell>
                                         <TableCell>
                                             {getPaymentStatusBadge(order.paid_status)}
