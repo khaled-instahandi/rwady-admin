@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { apiService, type Product } from "@/lib/api"
 import { ProductImagesEditor } from "@/components/products/product-images-editor"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import {
   ArrowLeft, ChevronDown, Package, DollarSign, ImageIcon, Save, Film, Calendar,
   Star, Tag, ShoppingCart, Truck, Scale, Box, Ruler, Palette
@@ -1043,19 +1044,20 @@ export default function BulkProductEditor() {
                         {/* Description */}
                         {columns.description && (
                           <td className="p-3">
-                            <Input
+                            <RichTextEditor
                               value={
                                 editedProducts[product.id]?.description?.en !== undefined
-                                  ? editedProducts[product.id].description?.en
+                                  ? editedProducts[product.id].description?.en || ""
                                   : product.description.en || ""
                               }
-                              onChange={(e) =>
+                              onChange={(value) =>
                                 handleProductChange(product.id, "description", {
                                   ar: product.description.ar,
-                                  en: e.target.value
+                                  en: value
                                 })
                               }
-                              className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:border-b focus-visible:border-blue-600"
+                              placeholder="Enter product description..."
+                              className="min-h-[150px]"
                             />
                           </td>
                         )}
