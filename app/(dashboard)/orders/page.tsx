@@ -133,11 +133,11 @@ export default function OrdersPage() {
         const statusConfig = {
             pending: { label: "Pending", variant: "secondary" as const, icon: Clock },
             in_progress: { label: "In Progress", variant: "default" as const, icon: Package },
-            processing: { label: "Processing", variant: "default" as const, icon: Package },
+            // processing: { label: "Processing", variant: "default" as const, icon: Package },
             shipping: { label: "Shipping", variant: "outline" as const, icon: Truck },
-            shipped: { label: "Shipped", variant: "outline" as const, icon: Truck },
-            completed: { label: "Completed", variant: "default" as const, icon: CheckCircle },
-            delivered: { label: "Delivered", variant: "default" as const, icon: CheckCircle },
+            // shipped: { label: "Shipped", variant: "outline" as const, icon: Truck },
+            completed: { label: "Completed", variant: "default" as const, icon: CheckCircle, className: "bg-green-600" },
+            // delivered: { label: "Delivered", variant: "default" as const, icon: CheckCircle },
             cancelled: { label: "Cancelled", variant: "destructive" as const, icon: XCircle }
         }
 
@@ -244,11 +244,11 @@ export default function OrdersPage() {
     const getStatusOptions = () => [
         { value: "pending", label: "Pending" },
         { value: "in_progress", label: "In Progress" },
-        { value: "processing", label: "Processing" },
+        // { value: "processing", label: "Processing" },
         { value: "shipping", label: "Shipping" },
-        { value: "shipped", label: "Shipped" },
+        // { value: "shipped", label: "Shipped" },
         { value: "completed", label: "Completed" },
-        { value: "delivered", label: "Delivered" },
+        // { value: "delivered", label: "Delivered" },
         { value: "cancelled", label: "Cancelled" }
     ]
 
