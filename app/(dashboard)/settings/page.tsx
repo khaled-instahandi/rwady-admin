@@ -473,16 +473,16 @@ export default function SettingsPage() {
           <Badge variant="secondary">{settings.length} settings</Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
+          {/* <Button 
             variant="outline" 
             size="sm"
             onClick={exportSettings}
           >
             <Download className="h-4 w-4 mr-2" />
             export JSON
-          </Button>
+          </Button> */}
           
-          <Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
+          {/* <Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
                 <Edit className="h-4 w-4 mr-2" />
@@ -502,7 +502,7 @@ export default function SettingsPage() {
                 onCancel={() => setIsBulkEditOpen(false)}
               />
             </DialogContent>
-          </Dialog>
+          </Dialog> */}
 
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -599,7 +599,7 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            {/* <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Choose category" />
               </SelectTrigger>
@@ -609,7 +609,7 @@ export default function SettingsPage() {
                   <SelectItem key={key} value={key}>{category.label}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select> */}
             <Select value={selectedType} onValueChange={setSelectedType}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Choose type" />
@@ -624,7 +624,7 @@ export default function SettingsPage() {
               </SelectContent>
             </Select>
             
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as "key" | "updated_at" | "created_at")}>
+            {/* <Select value={sortBy} onValueChange={(value) => setSortBy(value as "key" | "updated_at" | "created_at")}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -634,7 +634,7 @@ export default function SettingsPage() {
                 <SelectItem value="created_at">Creation Date</SelectItem>
               </SelectContent>
             </Select>
-            
+             */}
             <Button
               variant="outline"
               size="sm"
