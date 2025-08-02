@@ -349,6 +349,74 @@ export interface UpdateCouponData {
   end_date?: string
 }
 
+// Promotion interfaces
+export interface Promotion {
+  id: number
+  title: {
+    ar: string
+    en: string
+  }
+  type: "product" | "category" | "cart_total" | "shipping"
+  discount_type: "percentage" | "fixed"
+  discount_value: number
+  start_at: string | null
+  end_at: string | null
+  status: "draft" | "active" | "inactive"
+  products?: number[]
+  categories?: number[]
+  min_cart_total?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PromotionsResponse {
+  success: boolean
+  data: Promotion[]
+  meta: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+}
+
+export interface PromotionResponse {
+  success: boolean
+  data: Promotion
+}
+
+export interface CreatePromotionData {
+  title: {
+    ar: string
+    en: string
+  }
+  type: "product" | "category" | "cart_total" | "shipping"
+  discount_type: "percentage" | "fixed"
+  discount_value: number
+  start_at?: string
+  end_at?: string
+  status: "draft" | "active" | "inactive"
+  products?: number[]
+  categories?: number[]
+  min_cart_total?: number
+}
+
+export interface UpdatePromotionData {
+  title?: {
+    ar: string
+    en: string
+  }
+  type?: "product" | "category" | "cart_total" | "shipping"
+  discount_type?: "percentage" | "fixed"
+  discount_value?: number
+  start_at?: string
+  end_at?: string
+  status?: "draft" | "active" | "inactive"
+  products?: number[]
+  categories?: number[]
+  min_cart_total?: number
+}
+
 class ApiService {
   private getAuthHeaders() {
     let token = null
@@ -793,6 +861,27 @@ class ApiService {
 
   async deleteCoupon(id: number): Promise<ApiResponse<any>> {
     return this.delete(`/admin/coupons/${id}`)
+  }
+
+  // Promotions API methods
+  async getPromotions(params?: PaginationParams): Promise<ApiResponse<Promotion[]>> {
+    return this.get("/admin/promotions", params)
+  }
+
+  async getPromotion(id: number): Promise<ApiResponse<Promotion>> {
+    return this.get(`/admin/promotions/${id}`)
+  }
+
+  async createPromotion(data: CreatePromotionData): Promise<ApiResponse<Promotion>> {
+    return this.post("/admin/promotions", data)
+  }
+
+  async updatePromotion(id: number, data: UpdatePromotionData): Promise<ApiResponse<Promotion>> {
+    return this.put(`/admin/promotions/${id}`, data)
+  }
+
+  async deletePromotion(id: number): Promise<ApiResponse<any>> {
+    return this.delete(`/admin/promotions/${id}`)
   }
 }
 

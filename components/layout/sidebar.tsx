@@ -28,7 +28,8 @@ import {
   TextSelect,
   Pocket,
   Ticket,
-  Bell
+  Bell,
+  Tag
 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { motion, AnimatePresence } from "framer-motion"
@@ -48,6 +49,7 @@ const navigation: NavigationItem[] = [
   { name: "Brands", href: "/catalog/brands", icon: Pocket  },
   { name: "Orders", href: "/orders", icon: ShoppingCart },
   { name: "Coupons", href: "/coupons", icon: Ticket },
+  { name: "Promotions", href: "/promotions", icon: Tag },
   { name: "Home Sections", href: "/home-sections",icon: TextSelect  },
   { name: "Featured Sections", href: "/featured-sections", icon: LayoutTemplate  },
   { name: "Banners", href: "/banners", icon: Waypoints  },
