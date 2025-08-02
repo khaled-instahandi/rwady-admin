@@ -725,10 +725,10 @@ export default function CouponsPage() {
             {/* Create Dialog */}
             <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
                 // Prevent closing dialog by clicking outside
-                if (open === false) return
+                // if (open === false) return
                 setIsCreateDialogOpen(open)
             }}>
-                <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+                <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Add New Coupon</DialogTitle>
                         <DialogDescription>Create a new discount coupon for customers</DialogDescription>
@@ -831,7 +831,7 @@ function CouponForm({ formData, setFormData, onSubmit, submitting, isEdit, onCan
                             console.log("End date selected:", date)
                             setFormData({ ...formData, end_date: date })
                         }}
-                        min={!isEdit ? 
+                        min={!isEdit ?
                             (formData.start_date ? format(formData.start_date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")) :
                             (formData.start_date ? format(formData.start_date, "yyyy-MM-dd") : undefined)
                         }

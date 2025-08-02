@@ -125,6 +125,8 @@ export default function PromotionsPage() {
     const [availableProducts, setAvailableProducts] = useState<Product[]>([])
     const [categorySearchTerm, setCategorySearchTerm] = useState("")
     const [productSearchTerm, setProductSearchTerm] = useState("")
+    const [loadingProducts, setLoadingProducts] = useState(false)
+    const [loadingCategories, setLoadingCategories] = useState(false)
 
     const { toast } = useToast()
     const router = useRouter()
@@ -146,6 +148,24 @@ export default function PromotionsPage() {
 
         return () => clearTimeout(timer)
     }, [searchTerm])
+
+    // Search for products
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchProducts(productSearchTerm)
+        }, 300)
+
+        return () => clearTimeout(timer)
+    }, [productSearchTerm])
+
+    // Search for categories
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchCategories(categorySearchTerm)
+        }, 300)
+
+        return () => clearTimeout(timer)
+    }, [categorySearchTerm])
 
     const fetchPromotions = async () => {
         try {
@@ -194,25 +214,39 @@ export default function PromotionsPage() {
         }
     }
 
-    const fetchCategories = async () => {
+    const fetchCategories = async (search = "") => {
         try {
-            const response = await apiService.getCategories()
+            setLoadingCategories(true)
+            const params: any = {}
+            if (search) {
+                params.search = search
+            }
+            const response = await apiService.getCategories(params)
             if (response.success) {
                 setAvailableCategories(response.data)
             }
         } catch (error) {
             console.error("Error fetching categories:", error)
+        } finally {
+            setLoadingCategories(false)
         }
     }
 
-    const fetchProducts = async () => {
+    const fetchProducts = async (search = "") => {
         try {
-            const response = await apiService.getProducts()
+            setLoadingProducts(true)
+            const params: any = {}
+            if (search) {
+                params.search = search
+            }
+            const response = await apiService.getProducts(params)
             if (response.success) {
                 setAvailableProducts(response.data)
             }
         } catch (error) {
             console.error("Error fetching products:", error)
+        } finally {
+            setLoadingProducts(false)
         }
     }
 
@@ -481,11 +515,23 @@ export default function PromotionsPage() {
             setIsEditDialogOpen(true)
             setEditLoading(true)
             
+            // Reset search terms and fetch fresh data
+            setCategorySearchTerm("")
+            setProductSearchTerm("")
+            await fetchCategories("")
+            await fetchProducts("")
+            
             // Fetch the complete promotion data from API
             const response = await apiService.getPromotion(promotion.id)
             
             if (response.success && response.data) {
                 const promotionData = response.data
+                console.log("Promotion data from API:", promotionData)
+                console.log("Categories from API:", promotionData.categories)
+                
+                const categoryIds = promotionData.categories ? promotionData.categories.map((c: any) => c.id) : []
+                console.log("Category IDs:", categoryIds)
+                
                 setFormData({
                     title: promotionData.title,
                     type: promotionData.type,
@@ -495,7 +541,7 @@ export default function PromotionsPage() {
                     start_at: promotionData.start_at ? parseISO(promotionData.start_at) : undefined,
                     end_at: promotionData.end_at ? parseISO(promotionData.end_at) : undefined,
                     products: promotionData.products ? promotionData.products.map((p: any) => p.id) : [],
-                    categories: promotionData.categories ? promotionData.categories.map((c: any) => c.id) : [],
+                    categories: categoryIds,
                     min_cart_total: promotionData.min_cart_total || 0,
                 })
             } else {
@@ -852,6 +898,11 @@ export default function PromotionsPage() {
             {/* Create Dialog */}
             <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
                 if (open === false) return
+                // Reset search terms and fetch fresh data when opening create dialog
+                setCategorySearchTerm("")
+                setProductSearchTerm("")
+                fetchCategories("")
+                fetchProducts("")
                 setIsCreateDialogOpen(open)
             }}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
@@ -875,6 +926,8 @@ export default function PromotionsPage() {
                         setCategorySearchTerm={setCategorySearchTerm}
                         productSearchTerm={productSearchTerm}
                         setProductSearchTerm={setProductSearchTerm}
+                        loadingProducts={loadingProducts}
+                        loadingCategories={loadingCategories}
                     />
                 </DialogContent>
             </Dialog>
@@ -912,6 +965,8 @@ export default function PromotionsPage() {
                         setCategorySearchTerm={setCategorySearchTerm}
                         productSearchTerm={productSearchTerm}
                         setProductSearchTerm={setProductSearchTerm}
+                        loadingProducts={loadingProducts}
+                        loadingCategories={loadingCategories}
                     />
                 </DialogContent>
             </Dialog>
@@ -952,6 +1007,8 @@ interface PromotionFormProps {
     setCategorySearchTerm: (term: string) => void
     productSearchTerm: string
     setProductSearchTerm: (term: string) => void
+    loadingProducts?: boolean
+    loadingCategories?: boolean
 }
 
 function PromotionForm({
@@ -967,18 +1024,10 @@ function PromotionForm({
     categorySearchTerm,
     setCategorySearchTerm,
     productSearchTerm,
-    setProductSearchTerm
+    setProductSearchTerm,
+    loadingProducts = false,
+    loadingCategories = false
 }: PromotionFormProps) {
-
-    const filteredCategories = availableCategories.filter(cat =>
-        cat.name.ar.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
-        cat.name.en?.toLowerCase().includes(categorySearchTerm.toLowerCase())
-    )
-
-    const filteredProducts = availableProducts.filter(product =>
-        product.name.ar.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-        product.name.en?.toLowerCase().includes(productSearchTerm.toLowerCase())
-    )
 
     return (
         <div className="space-y-6 relative">
@@ -1131,32 +1180,39 @@ function PromotionForm({
                                 onChange={(e) => setProductSearchTerm(e.target.value)}
                                 className="mb-3"
                             />
-                            <div className="space-y-2">
-                                {filteredProducts.map((product) => (
-                                    <div key={product.id} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`product-${product.id}`}
-                                            checked={formData.products.includes(product.id)}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setFormData({
-                                                        ...formData,
-                                                        products: [...formData.products, product.id]
-                                                    })
-                                                } else {
-                                                    setFormData({
-                                                        ...formData,
-                                                        products: formData.products.filter(id => id !== product.id)
-                                                    })
-                                                }
-                                            }}
-                                        />
-                                        <label htmlFor={`product-${product.id}`} className="text-sm">
-                                            {product.name.ar} {product.name.en && `(${product.name.en})`}
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
+                            {loadingProducts ? (
+                                <div className="text-center py-4">
+                                    <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                    <p className="text-sm text-gray-500">Loading products...</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {availableProducts.map((product) => (
+                                        <div key={product.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`product-${product.id}`}
+                                                checked={formData.products.includes(product.id)}
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) {
+                                                        setFormData({
+                                                            ...formData,
+                                                            products: [...formData.products, product.id]
+                                                        })
+                                                    } else {
+                                                        setFormData({
+                                                            ...formData,
+                                                            products: formData.products.filter(id => id !== product.id)
+                                                        })
+                                                    }
+                                                }}
+                                            />
+                                            <label htmlFor={`product-${product.id}`} className="text-sm">
+                                                {product.name.ar} {product.name.en && `(${product.name.en})`}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <p className="text-sm text-gray-500">{formData.products.length} products selected</p>
                     </div>
@@ -1173,32 +1229,45 @@ function PromotionForm({
                                 onChange={(e) => setCategorySearchTerm(e.target.value)}
                                 className="mb-3"
                             />
-                            <div className="space-y-2">
-                                {filteredCategories.map((category) => (
-                                    <div key={category.id} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`category-${category.id}`}
-                                            checked={formData.categories.includes(category.id)}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setFormData({
-                                                        ...formData,
-                                                        categories: [...formData.categories, category.id]
-                                                    })
-                                                } else {
-                                                    setFormData({
-                                                        ...formData,
-                                                        categories: formData.categories.filter(id => id !== category.id)
-                                                    })
-                                                }
-                                            }}
-                                        />
-                                        <label htmlFor={`category-${category.id}`} className="text-sm">
-                                            {category.name.ar} {category.name.en && `(${category.name.en})`}
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
+                            {loadingCategories ? (
+                                <div className="text-center py-4">
+                                    <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                    <p className="text-sm text-gray-500">Loading categories...</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {availableCategories.map((category) => {
+                                        const isSelected = formData.categories.includes(category.id)
+                                        console.log(`Category ${category.id} (${category.name.ar}): selected = ${isSelected}`)
+                                        console.log(`formData.categories:`, formData.categories)
+                                        
+                                        return (
+                                            <div key={category.id} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`category-${category.id}`}
+                                                    checked={isSelected}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
+                                                            setFormData({
+                                                                ...formData,
+                                                                categories: [...formData.categories, category.id]
+                                                            })
+                                                        } else {
+                                                            setFormData({
+                                                                ...formData,
+                                                                categories: formData.categories.filter(id => id !== category.id)
+                                                            })
+                                                        }
+                                                    }}
+                                                />
+                                                <label htmlFor={`category-${category.id}`} className="text-sm">
+                                                    {category.name.ar} {category.name.en && `(${category.name.en})`}
+                                                </label>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
                         </div>
                         <p className="text-sm text-gray-500">{formData.categories.length} categories selected</p>
                     </div>
