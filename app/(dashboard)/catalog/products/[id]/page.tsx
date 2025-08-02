@@ -1613,7 +1613,7 @@ export default function ProductEditPage() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto hover:scale-110 drag-ignore"
+                                className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110 drag-ignore"
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
                                 }}

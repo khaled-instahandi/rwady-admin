@@ -75,7 +75,7 @@ export function SortableList({ items, onReorder, renderItem, className }: Sortab
       shouldHandleEvent: (event: Event) => {
         const target = event.target as HTMLElement;
         // Check if the target or any parent is a button, has pointer-events-auto, or has drag-ignore class
-        const isButton = target.closest('button, [role="button"], .pointer-events-auto, .drag-ignore');
+        const isButton = target.closest('button, [role="button"], .drag-ignore');
         return !isButton;
       }
     }),

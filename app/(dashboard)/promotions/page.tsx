@@ -131,6 +131,24 @@ export default function PromotionsPage() {
     const { toast } = useToast()
     const router = useRouter()
 
+    // Helper function to reset all modals and state
+    const resetModalState = () => {
+        setIsCreateDialogOpen(false)
+        setIsEditDialogOpen(false)
+        setDeleteDialogOpen(false)
+        setEditingPromotion(null)
+        setPromotionToDelete(null)
+        setEditLoading(false)
+        setFormData(initialFormData)
+        setCategorySearchTerm("")
+        setProductSearchTerm("")
+        
+        // Force remove pointer-events style if stuck
+        setTimeout(() => {
+            document.body.style.pointerEvents = 'auto'
+        }, 100)
+    }
+
     useEffect(() => {
         fetchPromotions()
         fetchCategories()
@@ -166,6 +184,27 @@ export default function PromotionsPage() {
 
         return () => clearTimeout(timer)
     }, [categorySearchTerm])
+
+    // Handle escape key to close modals
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                resetModalState()
+            }
+        }
+
+        document.addEventListener('keydown', handleEscape)
+        return () => {
+            document.removeEventListener('keydown', handleEscape)
+        }
+    }, [])
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            document.body.style.pointerEvents = 'auto'
+        }
+    }, [])
 
     const fetchPromotions = async () => {
         try {
@@ -388,8 +427,7 @@ export default function PromotionsPage() {
                     title: "Success",
                     description: "Promotion created successfully",
                 })
-                setIsCreateDialogOpen(false)
-                setFormData(initialFormData)
+                resetModalState()
                 await fetchPromotions()
             } else {
                 toast({
@@ -457,9 +495,7 @@ export default function PromotionsPage() {
                     title: "Success",
                     description: "Promotion updated successfully",
                 })
-                setIsEditDialogOpen(false)
-                setEditingPromotion(null)
-                setFormData(initialFormData)
+                resetModalState()
                 await fetchPromotions()
             } else {
                 toast({
@@ -526,11 +562,8 @@ export default function PromotionsPage() {
             
             if (response.success && response.data) {
                 const promotionData = response.data
-                console.log("Promotion data from API:", promotionData)
-                console.log("Categories from API:", promotionData.categories)
                 
                 const categoryIds = promotionData.categories ? promotionData.categories.map((c: any) => c.id) : []
-                console.log("Category IDs:", categoryIds)
                 
                 setFormData({
                     title: promotionData.title,
@@ -897,7 +930,11 @@ export default function PromotionsPage() {
 
             {/* Create Dialog */}
             <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
-                if (open === false) return
+                if (!open) {
+                    setIsCreateDialogOpen(false)
+                    setFormData(initialFormData)
+                    return
+                }
                 // Reset search terms and fetch fresh data when opening create dialog
                 setCategorySearchTerm("")
                 setProductSearchTerm("")
@@ -905,7 +942,7 @@ export default function PromotionsPage() {
                 fetchProducts("")
                 setIsCreateDialogOpen(open)
             }}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Create Promotion</DialogTitle>
                         <DialogDescription>Create a new promotional campaign</DialogDescription>
@@ -917,8 +954,7 @@ export default function PromotionsPage() {
                         submitting={submitting}
                         isEdit={false}
                         onCancel={() => {
-                            setIsCreateDialogOpen(false)
-                            setFormData(initialFormData)
+                            resetModalState()
                         }}
                         availableCategories={availableCategories}
                         availableProducts={availableProducts}
@@ -940,7 +976,9 @@ export default function PromotionsPage() {
                     setEditLoading(false)
                     setFormData(initialFormData)
                 }
-            }}>
+            }}
+            
+            >
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Promotion</DialogTitle>
@@ -954,10 +992,7 @@ export default function PromotionsPage() {
                         loading={editLoading}
                         isEdit={true}
                         onCancel={() => {
-                            setIsEditDialogOpen(false)
-                            setEditingPromotion(null)
-                            setEditLoading(false)
-                            setFormData(initialFormData)
+                            resetModalState()
                         }}
                         availableCategories={availableCategories}
                         availableProducts={availableProducts}
@@ -1238,8 +1273,6 @@ function PromotionForm({
                                 <div className="space-y-2">
                                     {availableCategories.map((category) => {
                                         const isSelected = formData.categories.includes(category.id)
-                                        console.log(`Category ${category.id} (${category.name.ar}): selected = ${isSelected}`)
-                                        console.log(`formData.categories:`, formData.categories)
                                         
                                         return (
                                             <div key={category.id} className="flex items-center space-x-2">
