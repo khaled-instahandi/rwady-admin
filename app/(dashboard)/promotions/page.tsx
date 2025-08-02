@@ -111,6 +111,7 @@ export default function PromotionsPage() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
+    const [editLoading, setEditLoading] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [promotionToDelete, setPromotionToDelete] = useState<Promotion | null>(null)
     const [formData, setFormData] = useState<PromotionFormData>(initialFormData)
@@ -474,21 +475,73 @@ export default function PromotionsPage() {
         }
     }
 
-    const openEditDialog = (promotion: Promotion) => {
-        setEditingPromotion(promotion)
-        setFormData({
-            title: promotion.title,
-            type: promotion.type,
-            discount_type: promotion.discount_type,
-            discount_value: promotion.discount_value,
-            status: promotion.status,
-            start_at: promotion.start_at ? parseISO(promotion.start_at) : undefined,
-            end_at: promotion.end_at ? parseISO(promotion.end_at) : undefined,
-            products: promotion.products || [],
-            categories: promotion.categories || [],
-            min_cart_total: promotion.min_cart_total || 0,
-        })
-        setIsEditDialogOpen(true)
+    const openEditDialog = async (promotion: Promotion) => {
+        try {
+            setEditingPromotion(promotion)
+            setIsEditDialogOpen(true)
+            setEditLoading(true)
+            
+            // Fetch the complete promotion data from API
+            const response = await apiService.getPromotion(promotion.id)
+            
+            if (response.success && response.data) {
+                const promotionData = response.data
+                setFormData({
+                    title: promotionData.title,
+                    type: promotionData.type,
+                    discount_type: promotionData.discount_type,
+                    discount_value: promotionData.discount_value,
+                    status: promotionData.status,
+                    start_at: promotionData.start_at ? parseISO(promotionData.start_at) : undefined,
+                    end_at: promotionData.end_at ? parseISO(promotionData.end_at) : undefined,
+                    products: promotionData.products ? promotionData.products.map((p: any) => p.id) : [],
+                    categories: promotionData.categories ? promotionData.categories.map((c: any) => c.id) : [],
+                    min_cart_total: promotionData.min_cart_total || 0,
+                })
+            } else {
+                // Fallback to the data from the list if API call fails
+                setFormData({
+                    title: promotion.title,
+                    type: promotion.type,
+                    discount_type: promotion.discount_type,
+                    discount_value: promotion.discount_value,
+                    status: promotion.status,
+                    start_at: promotion.start_at ? parseISO(promotion.start_at) : undefined,
+                    end_at: promotion.end_at ? parseISO(promotion.end_at) : undefined,
+                    products: promotion.products ? promotion.products.map((p: any) => p.id) : [],
+                    categories: promotion.categories ? promotion.categories.map((c: any) => c.id) : [],
+                    min_cart_total: promotion.min_cart_total || 0,
+                })
+                
+                toast({
+                    title: "Warning",
+                    description: response.message || "Failed to load complete promotion data",
+                    variant: "destructive",
+                })
+            }
+        } catch (error) {
+            // Fallback to the data from the list if API call fails
+            setFormData({
+                title: promotion.title,
+                type: promotion.type,
+                discount_type: promotion.discount_type,
+                discount_value: promotion.discount_value,
+                status: promotion.status,
+                start_at: promotion.start_at ? parseISO(promotion.start_at) : undefined,
+                end_at: promotion.end_at ? parseISO(promotion.end_at) : undefined,
+                products: promotion.products ? promotion.products.map((p: any) => p.id) : [],
+                categories: promotion.categories ? promotion.categories.map((c: any) => c.id) : [],
+                min_cart_total: promotion.min_cart_total || 0,
+            })
+            
+            toast({
+                title: "Error",
+                description: "Failed to load promotion data from server",
+                variant: "destructive",
+            })
+        } finally {
+            setEditLoading(false)
+        }
     }
 
     const openDeleteDialog = (promotion: Promotion) => {
@@ -750,7 +803,7 @@ export default function PromotionsPage() {
                                                 <PaginationItem>
                                                     <PaginationPrevious
                                                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                        className={currentPage === 1 ? "opacity-50" : "cursor-pointer"}
                                                     />
                                                 </PaginationItem>
 
@@ -783,7 +836,7 @@ export default function PromotionsPage() {
                                                 <PaginationItem>
                                                     <PaginationNext
                                                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                        className={currentPage === totalPages ? "opacity-50" : "cursor-pointer"}
                                                     />
                                                 </PaginationItem>
                                             </PaginationContent>
@@ -827,7 +880,14 @@ export default function PromotionsPage() {
             </Dialog>
 
             {/* Edit Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+                if (!open) {
+                    setIsEditDialogOpen(false)
+                    setEditingPromotion(null)
+                    setEditLoading(false)
+                    setFormData(initialFormData)
+                }
+            }}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Promotion</DialogTitle>
@@ -838,10 +898,12 @@ export default function PromotionsPage() {
                         setFormData={setFormData}
                         onSubmit={handleEditPromotion}
                         submitting={submitting}
+                        loading={editLoading}
                         isEdit={true}
                         onCancel={() => {
                             setIsEditDialogOpen(false)
                             setEditingPromotion(null)
+                            setEditLoading(false)
                             setFormData(initialFormData)
                         }}
                         availableCategories={availableCategories}
@@ -881,6 +943,7 @@ interface PromotionFormProps {
     setFormData: (data: PromotionFormData) => void
     onSubmit: () => void
     submitting: boolean
+    loading?: boolean
     isEdit: boolean
     onCancel?: () => void
     availableCategories: Category[]
@@ -896,6 +959,7 @@ function PromotionForm({
     setFormData,
     onSubmit,
     submitting,
+    loading = false,
     isEdit,
     onCancel,
     availableCategories,
@@ -917,7 +981,16 @@ function PromotionForm({
     )
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 relative">
+            {loading && (
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+                    <div className="text-center">
+                        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-sm text-gray-500">Loading promotion data...</p>
+                    </div>
+                </div>
+            )}
+            
             {/* Step 1: Choose the type of promotion */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Step 1. Choose the type of promotion</h3>

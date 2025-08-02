@@ -47,7 +47,7 @@ function SortableItem({ id, children, className }: SortableItemProps) {
     >
       {/* Drag indicator icon */}
       <div className={cn(
-        "absolute left-2 top-2 pointer-events-none",
+        "absolute left-2 top-2  ",
         isDragging ? "text-blue-600" : "text-gray-400"
       )}>
         <GripVertical className="w-4 h-4" />

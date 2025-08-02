@@ -1584,7 +1584,7 @@ export default function ProductEditPage() {
                                 <img
                                   src={item.url || "/placeholder.svg"}
                                   alt={`Product ${index + 1}`}
-                                  className="w-full h-full object-cover pointer-events-none"
+                                  className="w-full h-full object-cover  "
                                   onError={(e) => {
                                     console.error(`Failed to load image ${index}:`, item.url);
                                     (e.target as HTMLImageElement).src = "/placeholder.svg";
@@ -1595,13 +1595,13 @@ export default function ProductEditPage() {
                                   <img
                                     src={getVideoThumbnail(item.url)}
                                     alt={`Video ${index + 1}`}
-                                    className="w-full h-full object-cover pointer-events-none"
+                                    className="w-full h-full object-cover  "
                                     onError={(e) => {
                                       (e.target as HTMLImageElement).src = "/placeholder.svg";
                                     }}
                                   />
                                   {/* Play icon overlay for videos */}
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all pointer-events-none">
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all  ">
                                     <div className="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
                                       <Video className="w-6 h-6 text-gray-700" />
                                     </div>
@@ -1645,14 +1645,14 @@ export default function ProductEditPage() {
                               </Button>
 
                               {/* Order number */}
-                              <div className="absolute top-2 right-8 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <div className="absolute top-2 right-8 opacity-0 group-hover:opacity-100 transition-opacity  ">
                                 <div className="bg-blue-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold shadow-lg">
                                   {item.orders || index + 1}
                                 </div>
                               </div>
 
                               {/* Media type badge */}
-                              <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity  ">
                                 <div className={`text-white text-xs px-2 py-1 rounded flex items-center gap-1 shadow-lg ${item.type === 'image' ? 'bg-green-500' : 'bg-blue-500'
                                   }`}>
                                   {item.type === 'image' ? (

@@ -635,7 +635,7 @@ export default function CouponsPage() {
                                                 <PaginationItem>
                                                     <PaginationPrevious
                                                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                        className={currentPage === 1 ? "  opacity-50" : "cursor-pointer"}
                                                     />
                                                 </PaginationItem>
 
@@ -669,7 +669,7 @@ export default function CouponsPage() {
                                                 <PaginationItem>
                                                     <PaginationNext
                                                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                        className={currentPage === totalPages ? "  opacity-50" : "cursor-pointer"}
                                                     />
                                                 </PaginationItem>
                                             </PaginationContent>
