@@ -571,27 +571,81 @@ export default function ProductEditPage() {
     return ids
   }
 
-  // Function to handle category selection with children
+  // Function to get all parent category IDs recursively
+  const getAllParentIds = (categoryId: number, allCategories: any[]): number[] => {
+    const parentIds: number[] = []
+    
+    const findParents = (catId: number, categories: any[], currentParents: number[] = []): void => {
+      for (const category of categories) {
+        if (category.children && category.children.length > 0) {
+          const foundChild = category.children.find((child: any) => child.id === catId)
+          if (foundChild) {
+            parentIds.push(category.id)
+            // Also add grandparents recursively
+            findParents(category.id, allCategories, [...currentParents, category.id])
+            return
+          }
+          // Check deeper levels
+          findParents(catId, category.children, [...currentParents, category.id])
+        }
+      }
+    }
+    
+    findParents(categoryId, allCategories)
+    return parentIds
+  }
+
+  // Function to get previous siblings (categories that come before this one in the same parent)
+  const getPreviousSiblings = (categoryId: number, allCategories: any[]): number[] => {
+    const previousSiblings: number[] = []
+    
+    const findSiblings = (categories: any[]): void => {
+      for (const category of categories) {
+        if (category.children && category.children.length > 0) {
+          const targetIndex = category.children.findIndex((child: any) => child.id === categoryId)
+          if (targetIndex > 0) {
+            // Add all previous siblings
+            for (let i = 0; i < targetIndex; i++) {
+              previousSiblings.push(category.children[i].id)
+            }
+            return
+          }
+          // Check deeper levels
+          findSiblings(category.children)
+        }
+      }
+    }
+    
+    findSiblings(allCategories)
+    return previousSiblings
+  }
+
+  // Function to handle category selection with automatic parent/child logic
   const handleCategorySelection = (categoryId: number, checked: boolean, category?: any) => {
     const currentCategories = formData.categories || []
     
     if (checked) {
       // Add the category
-      const newCategories = [...currentCategories, categoryId]
+      let newCategories = [...currentCategories, categoryId]
       
-      // Optionally add all children if the category has children
-      if (category?.children && category.children.length > 0) {
-        const childIds = getAllChildIds(category)
-        const uniqueCategories = Array.from(new Set([...newCategories, ...childIds]))
-        handleInputChange("categories", uniqueCategories)
-      } else {
-        handleInputChange("categories", newCategories)
+      // If this is a child category, automatically select parent categories
+      const parentIds = getAllParentIds(categoryId, categoriesTree)
+      if (parentIds.length > 0) {
+        newCategories = Array.from(new Set([...newCategories, ...parentIds]))
+        
+        // Also select previous siblings in the same level
+        const previousSiblings = getPreviousSiblings(categoryId, categoriesTree)
+        if (previousSiblings.length > 0) {
+          newCategories = Array.from(new Set([...newCategories, ...previousSiblings]))
+        }
       }
+      
+      handleInputChange("categories", newCategories)
     } else {
       // Remove the category
       let newCategories = currentCategories.filter(id => id !== categoryId)
       
-      // Optionally remove all children if the category has children
+      // If this is a parent category, also remove all children
       if (category?.children && category.children.length > 0) {
         const childIds = getAllChildIds(category)
         newCategories = newCategories.filter(id => !childIds.includes(id))
