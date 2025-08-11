@@ -74,6 +74,10 @@ export default function CategoriesPage() {
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([])
   const [loadingProducts, setLoadingProducts] = useState(false)
   const [reorderingCategory, setReorderingCategory] = useState<number | null>(null)
+  const [productsPage, setProductsPage] = useState(1)
+  const [productsLimit, setProductsLimit] = useState(10)
+  const [productsTotalCount, setProductsTotalCount] = useState(0)
+  const [productsTotalPages, setProductsTotalPages] = useState(0)
   const router = useRouter()
   const [formData, setFormData] = useState<CategoryFormData>({
     name: { ar: "", en: "" },
@@ -150,10 +154,12 @@ export default function CategoriesPage() {
     loadCategories()
   }, [loadCategories])
 
-  const loadCategoryProducts = useCallback(async (categoryId: number) => {
+  const loadCategoryProducts = useCallback(async (categoryId: number, page: number = 1, limit: number = 10) => {
+    console.log('Loading category products:', { categoryId, page, limit })
     setLoadingProducts(true)
     try {
-      const response = await apiService.getCategoryProducts(categoryId)
+      const response = await apiService.getCategoryProducts(categoryId, { page, limit })
+      console.log('API Response:', response)
       if (response.success && response.data) {
         console.log(`Loaded ${response.data.length} products for category ${categoryId}:`, response.data);
 
@@ -164,16 +170,27 @@ export default function CategoriesPage() {
         });
 
         setCategoryProducts(response.data)
+        
+        // Update pagination info from response
+        if (response.meta) {
+          console.log('Pagination meta:', response.meta)
+          setProductsTotalCount(response.meta.total)
+          setProductsTotalPages(response.meta.last_page)
+          setProductsPage(response.meta.current_page)
+          setProductsLimit(response.meta.limit)
+        }
       } else {
         // Use mock data filtered by category
-        // const mockCategoryProducts = mockProducts.filter((p) => p.category_ids.includes(categoryId))
-        // setCategoryProducts(mockCategoryProducts)
         console.log("Using mock products as fallback")
+        setCategoryProducts([])
+        setProductsTotalCount(0)
+        setProductsTotalPages(0)
       }
     } catch (error) {
       console.error("Failed to load category products:", error)
-      // const mockCategoryProducts = mockProducts.filter((p) => p.category_ids.includes(categoryId))
-      // setCategoryProducts(mockCategoryProducts)
+      setCategoryProducts([])
+      setProductsTotalCount(0)
+      setProductsTotalPages(0)
     } finally {
       setLoadingProducts(false)
     }
@@ -196,7 +213,7 @@ export default function CategoriesPage() {
         })
 
         // Refresh the products list
-        loadCategoryProducts(selectedCategory.id)
+        loadCategoryProducts(selectedCategory.id, productsPage, productsLimit)
       } else {
         toast({
           title: "Error",
@@ -233,7 +250,7 @@ export default function CategoriesPage() {
         })
 
         // Refresh the products list
-        loadCategoryProducts(selectedCategory.id)
+        loadCategoryProducts(selectedCategory.id, productsPage, productsLimit)
       } else {
         toast({
           title: "Error",
@@ -281,7 +298,13 @@ export default function CategoriesPage() {
       });
 
       setUnsavedChanges(false);
-      loadCategoryProducts(selectedCategory.id);
+      
+      // Reset pagination when changing category
+      setProductsPage(1);
+      setProductsTotalCount(0);
+      setProductsTotalPages(0);
+      
+      loadCategoryProducts(selectedCategory.id, 1, productsLimit);
     }
   }, [selectedCategory, loadCategoryProducts])
 
@@ -628,6 +651,26 @@ export default function CategoriesPage() {
       });
     }
   }
+
+  const handleProductsPageChange = (newPage: number) => {
+    console.log('Page change requested:', { newPage, currentPage: productsPage, totalPages: productsTotalPages, categoryId: selectedCategory?.id })
+    if (selectedCategory && newPage >= 1 && newPage <= productsTotalPages) {
+      setProductsPage(newPage)
+      loadCategoryProducts(selectedCategory.id, newPage, productsLimit)
+    }
+  }
+
+  const handleProductsLimitChange = (newLimit: number) => {
+    console.log('Limit change requested:', { newLimit, currentLimit: productsLimit, categoryId: selectedCategory?.id })
+    if (selectedCategory) {
+      setProductsLimit(newLimit)
+      setProductsPage(1) // Reset to first page when changing limit
+      loadCategoryProducts(selectedCategory.id, 1, newLimit)
+    }
+  }
+
+  // Debug: Log current productsLimit value
+  console.log('Current productsLimit value:', productsLimit, typeof productsLimit)
 
   if (loading) {
     return <CategorySkeleton />
@@ -1127,15 +1170,76 @@ export default function CategoriesPage() {
 
                           <div className="mt-6 flex justify-between items-center text-sm text-gray-600">
                             <span>
-                              SHOWING 1 - {categoryProducts.length} OF {categoryProducts.length} PRODUCTS
+                              SHOWING {((productsPage - 1) * productsLimit) + 1} - {Math.min(productsPage * productsLimit, productsTotalCount)} OF {productsTotalCount} PRODUCTS
                             </span>
-                            <div className="flex items-center space-x-2">
-                              <span>PRODUCTS ON PAGE:</span>
-                              <select className="border border-gray-300 rounded px-2 py-1">
-                                <option>100</option>
-                                <option>50</option>
-                                <option>25</option>
-                              </select>
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                <span>PRODUCTS ON PAGE:</span>
+                                <select 
+                                  className="border border-gray-300 rounded px-2 py-1"
+                                  value={(productsLimit || 10).toString()}
+                                  onChange={(e) => {
+                                    console.log('Select onChange triggered:', e.target.value)
+                                    handleProductsLimitChange(Number(e.target.value))
+                                  }}
+                                >
+                                  <option value="5">5</option>
+                                  <option value="10">10</option>
+                                  <option value="25">25</option>
+                                  <option value="50">50</option>
+                                  <option value="100">100</option>
+                                </select>
+                              </div>
+                              
+                              {productsTotalPages > 1 && productsTotalCount > 0 && (
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => handleProductsPageChange(productsPage - 1)}
+                                    disabled={productsPage === 1 || loadingProducts}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                  >
+                                    السابق
+                                  </button>
+                                  
+                                  <div className="flex items-center space-x-1">
+                                    {Array.from({ length: Math.min(5, productsTotalPages) }, (_, i) => {
+                                      let pageNum;
+                                      if (productsTotalPages <= 5) {
+                                        pageNum = i + 1;
+                                      } else if (productsPage <= 3) {
+                                        pageNum = i + 1;
+                                      } else if (productsPage >= productsTotalPages - 2) {
+                                        pageNum = productsTotalPages - 4 + i;
+                                      } else {
+                                        pageNum = productsPage - 2 + i;
+                                      }
+                                      
+                                      return (
+                                        <button
+                                          key={pageNum}
+                                          onClick={() => handleProductsPageChange(pageNum)}
+                                          disabled={loadingProducts}
+                                          className={`px-3 py-1 text-sm border rounded disabled:opacity-50 ${
+                                            pageNum === productsPage
+                                              ? 'bg-blue-600 text-white border-blue-600'
+                                              : 'border-gray-300 hover:bg-gray-50'
+                                          }`}
+                                        >
+                                          {pageNum}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  
+                                  <button
+                                    onClick={() => handleProductsPageChange(productsPage + 1)}
+                                    disabled={productsPage === productsTotalPages || loadingProducts}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                  >
+                                    التالي
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1347,7 +1451,7 @@ export default function CategoriesPage() {
           categoryName={selectedCategory.name.ar || selectedCategory.name.en || ""}
           assignedProductIds={categoryProducts.map((p) => p.id)}
           onProductsAssigned={() => {
-            loadCategoryProducts(selectedCategory.id)
+            loadCategoryProducts(selectedCategory.id, productsPage, productsLimit)
             loadCategories()
           }}
         />
