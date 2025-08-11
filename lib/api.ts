@@ -21,6 +21,39 @@ export interface Category {
   children?: Category[]
 }
 
+export interface DashboardAnalytics {
+  total_orders: number
+  total_products: number
+  total_revenue: number
+  total_customers: number
+}
+
+export interface User {
+  id: number
+  name: string
+  phone: string
+  avatar: string | null
+  status: "active" | "inactive"
+  role: "customer" | "admin"
+  otp: string
+  otp_expire_at: string
+  is_verified: number
+  language: "en" | "ar"
+  created_at: string
+  updated_at: string
+}
+
+export interface UsersResponse {
+  success: boolean
+  data: User[]
+  meta: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+}
+
 export interface Product {
   id: number
   name: {
@@ -887,6 +920,101 @@ class ApiService {
   async deletePromotion(id: number): Promise<ApiResponse<any>> {
     return this.delete(`/admin/promotions/${id}`)
   }
+
+  // Dashboard Analytics
+  async getDashboardAnalytics(): Promise<ApiResponse<DashboardAnalytics>> {
+    const response = await fetch(`${API_BASE_URL}/admin/dashboard/analytics`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch dashboard analytics")
+    }
+
+    return response.json()
+  }
+
+  // Users Management
+  async getUsers(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    status?: string
+    role?: string
+  }): Promise<UsersResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append("page", params.page.toString())
+    if (params?.limit) searchParams.append("limit", params.limit.toString())
+    if (params?.search) searchParams.append("search", params.search)
+    if (params?.status && params.status !== "all") searchParams.append("status", params.status)
+    if (params?.role && params.role !== "all") searchParams.append("role", params.role)
+
+    const response = await fetch(`${API_BASE_URL}/admin/users?${searchParams.toString()}`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch users")
+    }
+
+    return response.json()
+  }
+
+  async getUser(id: number): Promise<ApiResponse<User>> {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch user")
+    }
+
+    return response.json()
+  }
+
+  async createUser(data: Partial<User>): Promise<ApiResponse<User>> {
+    const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to create user")
+    }
+
+    return response.json()
+  }
+
+  async updateUser(id: number, data: Partial<User>): Promise<ApiResponse<User>> {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to update user")
+    }
+
+    return response.json()
+  }
+
+  async deleteUser(id: number): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to delete user")
+    }
+
+    return response.json()
+  }
 }
 
 export const apiService = new ApiService()
@@ -1318,6 +1446,22 @@ export const notificationsApi = {
 
     if (!response.ok) {
       throw new Error("Failed to delete notification")
+    }
+
+    return response.json()
+  }
+}
+
+// Dashboard Analytics API
+export const dashboardApi = {
+  async getAnalytics(): Promise<ApiResponse<DashboardAnalytics>> {
+    const response = await fetch(`${API_BASE_URL}/admin/dashboard/analytics`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch dashboard analytics")
     }
 
     return response.json()

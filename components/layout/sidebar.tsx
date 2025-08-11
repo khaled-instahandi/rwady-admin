@@ -29,7 +29,8 @@ import {
   Pocket,
   Ticket,
   Bell,
-  Tag
+  Tag,
+  Users
 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { motion, AnimatePresence } from "framer-motion"
@@ -54,6 +55,7 @@ const navigation: NavigationItem[] = [
   { name: "Featured Sections", href: "/featured-sections", icon: LayoutTemplate  },
   { name: "Banners", href: "/banners", icon: Waypoints  },
   { name: "Notifications", href: "/notifications", icon: Bell },
+  { name: "Users", href: "/users", icon: Users },
 
   // { name: "Marketing", href: "/marketing", icon: BarChart3 },
   // { name: "Reports", href: "/reports", icon: BarChart3 },
