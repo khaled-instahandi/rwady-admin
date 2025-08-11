@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -30,6 +32,10 @@ import {
   Copy,
   ArrowRight,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  X,
 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
@@ -57,6 +63,7 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [tableLoading, setTableLoading] = useState(false) // Separate loading for table updates
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   const [searchInput, setSearchInput] = useState("")
   const [currentPage, setCurrentPage] = useState(() => {
@@ -64,9 +71,13 @@ export default function ProductsPage() {
     return pageParam ? parseInt(pageParam, 10) : 1
   })
   const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    const limitParam = searchParams.get('limit')
+    return limitParam ? parseInt(limitParam, 10) : 20
+  })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [productToDelete, setProductToDelete] = useState<Product | null>(null)
-  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [activeFilters, setActiveFilters] = useState(0)
   const [categories, setCategories] = useState<any[]>([])
   const [brands, setBrands] = useState<any[]>([])
@@ -124,12 +135,13 @@ export default function ProductsPage() {
   }, [searchParams])
 
   // Function to update URL parameters
-  const updateUrlParams = useCallback((newFilters?: any, page?: number, search?: string) => {
+  const updateUrlParams = useCallback((newFilters?: any, page?: number, search?: string, limit?: number) => {
     const params = new URLSearchParams()
 
     const currentFilters = newFilters || filters
     const currentPage = page || 1
     const currentSearch = search !== undefined ? search : debouncedSearch
+    const currentLimit = limit || itemsPerPage
 
     // Add search parameter
     if (currentSearch) {
@@ -139,6 +151,11 @@ export default function ProductsPage() {
     // Add page parameter
     if (currentPage > 1) {
       params.set('page', currentPage.toString())
+    }
+
+    // Add limit parameter if different from default
+    if (currentLimit !== 20) {
+      params.set('limit', currentLimit.toString())
     }
 
     // Add filter parameters
@@ -175,7 +192,7 @@ export default function ProductsPage() {
     }
 
     router.push(`?${params.toString()}`, { scroll: false })
-  }, [router, filters, debouncedSearch])
+  }, [router, filters, debouncedSearch, itemsPerPage])
 
   // Function to update current page and URL
   const updateCurrentPage = useCallback((page: number) => {
@@ -183,14 +200,27 @@ export default function ProductsPage() {
     updateUrlParams(undefined, page)
   }, [updateUrlParams])
 
+  // Function to update items per page
+  const updateItemsPerPage = useCallback((limit: number) => {
+    setItemsPerPage(limit)
+    setCurrentPage(1) // Reset to first page when changing limit
+    updateUrlParams(undefined, 1, undefined, limit)
+  }, [updateUrlParams])
+
   // Sync currentPage with URL parameter changes
   useEffect(() => {
     const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
     const urlPage = pageParam ? parseInt(pageParam, 10) : 1
+    const urlLimit = limitParam ? parseInt(limitParam, 10) : 20
+
     if (urlPage !== currentPage) {
       setCurrentPage(urlPage)
     }
-  }, [searchParams, currentPage])
+    if (urlLimit !== itemsPerPage) {
+      setItemsPerPage(urlLimit)
+    }
+  }, [searchParams, currentPage, itemsPerPage])
 
   // Fetch categories for the filter dropdown
   const fetchCategories = useCallback(async () => {
@@ -242,9 +272,14 @@ export default function ProductsPage() {
     setActiveFilters(count)
   }, [filters])
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (updateTable = false) => {
     try {
-      setLoading(true)
+      // Use tableLoading for filter/search updates, loading for initial load
+      if (updateTable) {
+        setTableLoading(true)
+      } else {
+        setLoading(true)
+      }
 
       const sortParams = getSortParams()
 
@@ -277,7 +312,7 @@ export default function ProductsPage() {
 
       const response = await apiService.getProducts({
         page: currentPage,
-        limit: 20,
+        limit: itemsPerPage,
         search: debouncedSearch,
         sort_field: sortParams.sort_field,
         sort_order: sortParams.sort_order,
@@ -288,6 +323,7 @@ export default function ProductsPage() {
         setProducts(response.data)
         if (response.meta) {
           setTotalPages(response.meta.last_page)
+          setTotalItems(response.meta.total)
         }
       } else {
         toast({
@@ -304,13 +340,31 @@ export default function ProductsPage() {
         variant: "destructive",
       })
     } finally {
-      setLoading(false)
+      if (updateTable) {
+        setTableLoading(false)
+      } else {
+        setLoading(false)
+      }
     }
-  }, [currentPage, debouncedSearch, filters, getSortParams, toast])
+  }, [currentPage, debouncedSearch, filters, getSortParams, toast, itemsPerPage])
+
+  // Track if this is the first load
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   useEffect(() => {
-    fetchProducts()
-  }, [fetchProducts])
+    // Initial load
+    if (isInitialLoad) {
+      fetchProducts()
+      setIsInitialLoad(false)
+    }
+  }, [isInitialLoad])
+
+  // Handle manual updates (search, filter, pagination changes)
+  useEffect(() => {
+    if (!isInitialLoad) {
+      fetchProducts(true)
+    }
+  }, [currentPage, itemsPerPage, debouncedSearch, filters, isInitialLoad])
 
   const handleSearch = (query: string) => {
     setSearchInput(query)
@@ -323,33 +377,6 @@ export default function ProductsPage() {
     setFilters(newFilters)
     updateUrlParams(newFilters, 1)
     setCurrentPage(1)
-  }
-
-  // Special handler for filter dialog - doesn't update URL immediately
-  const handleFilterDialogChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-  }
-
-  // Special handler for requires_shipping in filter dialog
-  const handleShippingFilterChange = (value: string) => {
-    if (value === "true") {
-      setFilters(prev => ({ ...prev, requires_shipping: true }))
-    } else if (value === "false") {
-      setFilters(prev => ({ ...prev, requires_shipping: false }))
-    } else {
-      setFilters(prev => {
-        const newFilters = { ...prev }
-        delete newFilters.requires_shipping
-        return newFilters
-      })
-    }
-  }
-
-  // Apply filters from dialog
-  const applyFilters = () => {
-    updateUrlParams(filters, 1)
-    setCurrentPage(1)
-    setFilterDialogOpen(false)
   }
 
   const clearFilters = () => {
@@ -433,6 +460,54 @@ export default function ProductsPage() {
 
   const formatPrice = (price: number) => {
     return `${price.toLocaleString()} IQD`
+  }
+
+  // Generate pagination page numbers
+  const getPaginationPages = () => {
+    const pages = []
+    const maxVisiblePages = 5
+
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is less than max visible
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(1)
+
+      let startPage = Math.max(2, currentPage - 1)
+      let endPage = Math.min(totalPages - 1, currentPage + 1)
+
+      // Adjust if we're near the beginning or end
+      if (currentPage <= 3) {
+        endPage = Math.min(totalPages - 1, 4)
+      } else if (currentPage >= totalPages - 2) {
+        startPage = Math.max(2, totalPages - 3)
+      }
+
+      // Add ellipsis if there's a gap
+      if (startPage > 2) {
+        pages.push('...')
+      }
+
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i)
+      }
+
+      // Add ellipsis if there's a gap
+      if (endPage < totalPages - 1) {
+        pages.push('...')
+      }
+
+      // Always show last page
+      if (totalPages > 1) {
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
   }
 
   // Function to generate bulk edit URL with current filters and selected products
@@ -546,8 +621,8 @@ export default function ProductsPage() {
           </Link>
           <Link href={`/catalog/products/bulk-edit${getBulkEditUrl()}`}>
             <Button variant="outline">
-              {selectedProducts.length > 0 
-                ? `Bulk Edit Selected (${selectedProducts.length})` 
+              {selectedProducts.length > 0
+                ? `Bulk Edit Selected (${selectedProducts.length})`
                 : "Bulk Edit All"}
             </Button>
           </Link>
@@ -572,274 +647,556 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setFilterDialogOpen(true)}
-            className={activeFilters > 0 ? "border-blue-500 text-blue-600" : ""}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-            {activeFilters > 0 && (
-              <span className="ml-2 w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
-                {activeFilters}
-              </span>
-            )}
-          </Button>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search by product name, SKU, UPC..."
-              value={searchInput}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={selectedProducts.length === products.length && products.length > 0}
-                onCheckedChange={handleSelectAll}
-              />
-              {selectedProducts.length > 0 && (
-                <span className="text-sm text-blue-600 font-medium">
-                  {selectedProducts.length} selected
+      {/* Main Content with Sidebar */}
+      <div className="flex gap-6">
+        {/* Filters Sidebar */}
+        <div className="w-80 flex-shrink-0">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <span>Filters</span>
+                {activeFilters > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedProducts([])}
-                    className="ml-2 h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                    onClick={clearFilters}
+                    className="text-blue-600 hover:text-blue-700"
                   >
-                    Clear
+                    <X className="h-4 w-4 mr-1" />
+                    Clear ({activeFilters})
                   </Button>
-                </span>
-              )}
-            </div>
-            <Select
-              value={`${filters.sort_field}_${filters.sort_order}`}
-              onValueChange={(value) => {
-                // Handle special case for created_at
-                let field, order
-                if (value.startsWith('created_at_')) {
-                  field = 'created_at'
-                  order = value.replace('created_at_', '')
-                } else {
-                  const lastUnderscoreIndex = value.lastIndexOf('_')
-                  field = value.substring(0, lastUnderscoreIndex)
-                  order = value.substring(lastUnderscoreIndex + 1)
-                }
-                
-                const newFilters = {
-                  ...filters,
-                  sort_field: field,
-                  sort_order: order as "asc" | "desc"
-                }
-                setFilters(newFilters)
-                updateUrlParams(newFilters, 1)
-                setCurrentPage(1)
-              }}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Sort By" />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={4}>
-                <SelectItem value="name_asc">Name: A to Z</SelectItem>
-                <SelectItem value="name_desc">Name: Z to A</SelectItem>
-                <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                <SelectItem value="created_at_desc">Newest First</SelectItem>
-                <SelectItem value="created_at_asc">Oldest First</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={fetchProducts}
-              className="text-blue-600 hover:text-blue-700"
-            >
-              Refresh
-            </Button>
-          </div>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Search */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search products..."
+                    value={searchInput}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select
+                  value={filters.status}
+                  onValueChange={(value) => handleFilterChange("status", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any status</SelectItem>
+                    <SelectItem value="enabled">Enabled</SelectItem>
+                    <SelectItem value="disabled">Disabled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Category Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Category</label>
+                <Select
+                  value={filters.category_id}
+                  onValueChange={(value) => handleFilterChange("category_id", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any category</SelectItem>
+                    {loadingFilters ? (
+                      <SelectItem value="loading" disabled>
+                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                        Loading...
+                      </SelectItem>
+                    ) : (
+                      categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name.en}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Brand Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Brand</label>
+                <Select
+                  value={filters.brand_id}
+                  onValueChange={(value) => handleFilterChange("brand_id", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any brand</SelectItem>
+                    {loadingFilters ? (
+                      <SelectItem value="loading" disabled>
+                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                        Loading...
+                      </SelectItem>
+                    ) : (
+                      brands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          {brand.name.en}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Price Range Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Price Range</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.price_min}
+                    onChange={(e) => handleFilterChange("price_min", e.target.value)}
+                    className="flex-1"
+                  />
+                  <span className="text-gray-400">-</span>
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.price_max}
+                    onChange={(e) => handleFilterChange("price_max", e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              {/* Stock Status Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Stock Status</label>
+                <Select
+                  value={filters.stock_status}
+                  onValueChange={(value) => handleFilterChange("stock_status", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any stock status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any stock status</SelectItem>
+                    <SelectItem value="in_stock">In Stock</SelectItem>
+                    <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                    <SelectItem value="unlimited">Unlimited Stock</SelectItem>
+                    <SelectItem value="preorder">Pre-order Enabled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Shipping Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Shipping</label>
+                <Select
+                  value={filters.requires_shipping !== undefined ? (filters.requires_shipping ? "true" : "false") : "any"}
+                  onValueChange={(value) => {
+                    if (value === "true") {
+                      const newFilters = { ...filters, requires_shipping: true }
+                      setFilters(newFilters)
+                      updateUrlParams(newFilters, 1)
+                      setCurrentPage(1)
+                    } else if (value === "false") {
+                      const newFilters = { ...filters, requires_shipping: false }
+                      setFilters(newFilters)
+                      updateUrlParams(newFilters, 1)
+                      setCurrentPage(1)
+                    } else {
+                      const newFilters = { ...filters }
+                      delete newFilters.requires_shipping
+                      setFilters(newFilters)
+                      updateUrlParams(newFilters, 1)
+                      setCurrentPage(1)
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any shipping status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any shipping status</SelectItem>
+                    <SelectItem value="true">Requires shipping</SelectItem>
+                    <SelectItem value="false">No shipping required</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Shipping Type Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Shipping Type</label>
+                <Select
+                  value={filters.shipping_type || "any"}
+                  onValueChange={(value) => handleFilterChange("shipping_type", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any shipping type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any shipping type</SelectItem>
+                    <SelectItem value="default">Default shipping</SelectItem>
+                    <SelectItem value="fixed_shipping">Fixed shipping</SelectItem>
+                    <SelectItem value="free_shipping">Free shipping</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      {/* Products List */}
-      <div className="space-y-1">
-        {products.length === 0 ? (
-          <div className="p-8 text-center border rounded-lg bg-gray-50">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">No products found</h3>
-            <p className="text-gray-600 mt-1">
-              {debouncedSearch || activeFilters > 0
-                ? "Try changing your search or filter criteria"
-                : "Add your first product to get started"
-              }
-            </p>
-            {(debouncedSearch || activeFilters > 0) && (
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => {
-                  setSearchInput("");
-                  clearFilters();
-                }}
-              >
-                Clear Search & Filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          products.map((product) => {
-            console.log('Product ID for edit link:', product.id); // Debug log
-            return (
-              <div key={product.id} className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50">
-                <Checkbox
-                  checked={selectedProducts.includes(product.id)}
-                  onCheckedChange={() => handleSelectProduct(product.id)}
-                />
-
-                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                  {product.media.length > 0 && product.media[0].type === "image" ? (
-                    <img
-                      src={product.media[0].url || "/placeholder.svg?height=64&width=64"}
-                      alt={product.name.en}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "/placeholder.svg?height=64&width=64";
-                      }}
-                    />
-                  ) : (
-                    <Package className="h-8 w-8 text-gray-400" />
+        {/* Main Content Area */}
+        <div className="flex-1 min-w-0">
+          {/* Table Controls */}
+          <div className="mb-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedProducts.length === products.length && products.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  {selectedProducts.length > 0 && (
+                    <span className="text-sm text-blue-600 font-medium">
+                      {selectedProducts.length} selected
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedProducts([])}
+                        className="ml-2 h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        Clear
+                      </Button>
+                    </span>
                   )}
                 </div>
+                <Select
+                  value={`${filters.sort_field}_${filters.sort_order}`}
+                  onValueChange={(value) => {
+                    // Handle special case for created_at
+                    let field, order
+                    if (value.startsWith('created_at_')) {
+                      field = 'created_at'
+                      order = value.replace('created_at_', '')
+                    } else {
+                      const lastUnderscoreIndex = value.lastIndexOf('_')
+                      field = value.substring(0, lastUnderscoreIndex)
+                      order = value.substring(lastUnderscoreIndex + 1)
+                    }
 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{product.name.en}</h3>
-                      <p className="text-sm text-gray-500">{product.sku}</p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${product.availability ? "bg-green-500" : "bg-gray-400"}`}
-                          />
-                          <span className={`text-sm ${product.availability ? "text-green-600" : "text-gray-500"}`}>
-                            {product.availability ? "Enabled" : "Disabled"}
-                          </span>
+                    const newFilters = {
+                      ...filters,
+                      sort_field: field,
+                      sort_order: order as "asc" | "desc"
+                    }
+                    setFilters(newFilters)
+                    updateUrlParams(newFilters, 1)
+                    setCurrentPage(1)
+                  }}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name_asc">Name: A to Z</SelectItem>
+                    <SelectItem value="name_desc">Name: Z to A</SelectItem>
+                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                    <SelectItem value="created_at_desc">Newest First</SelectItem>
+                    <SelectItem value="created_at_asc">Oldest First</SelectItem>
+                    {/* sku */}
+                    <SelectItem value="sku_asc">SKU: A to Z</SelectItem>
+                    <SelectItem value="sku_desc">SKU: Z to A</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fetchProducts(true)}
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  Refresh
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Items per page:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => updateItemsPerPage(parseInt(value))}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Results Summary */}
+            <div className="text-sm text-gray-600">
+              {loading ? (
+                "Loading..."
+              ) : (
+                `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, totalItems)} of ${totalItems} products`
+              )}
+            </div>
+          </div>
+
+          {/* Products List - This will be the only part that updates */}
+          <div id="products-table" className="space-y-1 relative">
+            {/* Loading overlay for table updates */}
+            {tableLoading && (
+              <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+                <div className="flex items-center gap-2 bg-white rounded-lg shadow-lg px-4 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  <span className="text-sm text-gray-600">Updating...</span>
+                </div>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="space-y-4">
+                {Array(itemsPerPage).fill(0).map((_, i) => (
+                  <div key={i} className="p-4 border rounded-lg bg-gray-50">
+                    <div className="flex gap-4">
+                      <div className="h-5 w-5 rounded bg-gray-200 animate-pulse" />
+                      <div className="h-16 w-16 bg-gray-200 rounded animate-pulse" />
+                      <div className="flex-1">
+                        <div className="h-6 w-48 bg-gray-200 rounded animate-pulse mb-2" />
+                        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse mb-3" />
+                        <div className="flex gap-3">
+                          <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${product.stock > 0 || product.stock_unlimited ? "bg-green-500" : "bg-red-500"}`}
-                          />
-                          <span className="text-sm text-gray-600">
-                            {product.stock_unlimited ? "In stock" : product.stock > 0 ? "In stock" : "Out of stock"}
-                          </span>
-                        </div>
-                        {product.requires_shipping && (
-                          <div className="flex items-center gap-2">
-                            <Package className="h-3 w-3 text-gray-400" />
-                            <span className="text-sm text-gray-600">
-                              {product.shipping_type === "free_shipping"
-                                ? "Free shipping"
-                                : product.shipping_type === "fixed_shipping"
-                                  ? `Fixed shipping (${product.shipping_rate_single?.toLocaleString()} IQD)`
-                                  : "Default shipping"}
-                            </span>
-                          </div>
-                        )}
-                        {product.out_of_stock === "show_and_allow_pre_order" && product.stock <= 0 && !product.stock_unlimited && (
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-orange-500" />
-                            <span className="text-sm text-orange-600">Pre-order enabled</span>
-                          </div>
-                        )}
                       </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-gray-900">{formatPrice(product.price)}</div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              Edit Product
-                              <ChevronDown className="h-4 w-4 ml-2" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" forceMount>
-                            <DropdownMenuItem asChild>
-                              <Link
-                                href={`/catalog/products/${product.id}`}
-                                onClick={(e) => {
-                                  console.log('Navigating to:', `/catalog/products/${product.id}`);
-                                  console.log('Product ID:', product.id);
-                                  // Test manual navigation
-                                  // e.preventDefault();
-                                  // window.location.href = `/catalog/products/${product.id}`;
-                                }}
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </Link>
-                            </DropdownMenuItem>
-                            {/* <DropdownMenuItem>
-                            <Copy className="h-4 w-4 mr-2" />
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Preview
-                          </DropdownMenuItem> */}
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => {
-                                setProductToDelete(product)
-                                setDeleteDialogOpen(true)
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <div className="flex flex-col items-end">
+                        <div className="h-6 w-24 bg-gray-200 rounded animate-pulse mb-2" />
+                        <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
                       </div>
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
-            );
-          })
-        )}
-      </div>
+            ) : products.length === 0 ? (
+              <div className="p-8 text-center border rounded-lg bg-gray-50">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900">No products found</h3>
+                <p className="text-gray-600 mt-1">
+                  {debouncedSearch || activeFilters > 0
+                    ? "Try changing your search or filter criteria"
+                    : "Add your first product to get started"
+                  }
+                </p>
+                {(debouncedSearch || activeFilters > 0) && (
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => {
+                      setSearchInput("");
+                      clearFilters();
+                    }}
+                  >
+                    Clear Search & Filters
+                  </Button>
+                )}
+              </div>
+            ) : (
+              products.map((product) => {
+                console.log('Product ID for edit link:', product.id); // Debug log
+                return (
+                  <div key={product.id} className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      checked={selectedProducts.includes(product.id)}
+                      onCheckedChange={() => handleSelectProduct(product.id)}
+                    />
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => updateCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            onClick={() => updateCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                      {product.media.length > 0 && product.media[0].type === "image" ? (
+                        <img
+                          src={product.media[0].url || "/placeholder.svg?height=64&width=64"}
+                          alt={product.name.en}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder.svg?height=64&width=64";
+                          }}
+                        />
+                      ) : (
+                        <Package className="h-8 w-8 text-gray-400" />
+                      )}
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{product.name.en}</h3>
+                          <p className="text-sm text-gray-500">{product.sku}</p>
+                          <div className="flex items-center gap-4 mt-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={product.availability ? "default" : "secondary"}>
+                                {product.availability ? "Enabled" : "Disabled"}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={product.stock > 0 || product.stock_unlimited ? "default" : "destructive"}>
+                                {product.stock_unlimited ? "In stock" : product.stock > 0 ? "In stock" : "Out of stock"}
+                              </Badge>
+                            </div>
+                            {product.requires_shipping && (
+                              <div className="flex items-center gap-2">
+                                <Package className="h-3 w-3 text-gray-400" />
+                                <span className="text-sm text-gray-600">
+                                  {product.shipping_type === "free_shipping"
+                                    ? "Free shipping"
+                                    : product.shipping_type === "fixed_shipping"
+                                      ? `Fixed shipping (${product.shipping_rate_single?.toLocaleString()} IQD)`
+                                      : "Default shipping"}
+                                </span>
+                              </div>
+                            )}
+                            {product.out_of_stock === "show_and_allow_pre_order" && product.stock <= 0 && !product.stock_unlimited && (
+                              <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                Pre-order enabled
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-lg font-semibold text-gray-900">{formatPrice(product.price)}</div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  Actions
+                                  <ChevronDown className="h-4 w-4 ml-2" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" forceMount>
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/catalog/products/${product.id}`}
+                                    onClick={(e) => {
+                                      console.log('Navigating to:', `/catalog/products/${product.id}`);
+                                      console.log('Product ID:', product.id);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => {
+                                    setProductToDelete(product)
+                                    setDeleteDialogOpen(true)
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Enhanced Pagination */}
+          {totalPages > 1 && !loading && (
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages} • {totalItems} total items
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 -ml-1" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                {getPaginationPages().map((page, index) => (
+                  <div key={index}>
+                    {page === '...' ? (
+                      <span className="px-3 py-1 text-gray-500">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </span>
+                    ) : (
+                      <Button
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => updateCurrentPage(page as number)}
+                        className="px-3"
+                      >
+                        {page}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 -ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <Dialog
@@ -883,193 +1240,6 @@ export default function ProductsPage() {
               handleDeleteProduct();
             }}>
               Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Filter Dialog */}
-      <Dialog
-        open={filterDialogOpen}
-        modal={true}
-        onOpenChange={(open) => {
-          setFilterDialogOpen(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => {
-          // Prevent interaction outside while dialog is open
-          e.preventDefault();
-        }} onEscapeKeyDown={(e) => {
-          // Allow Escape key to close the dialog without causing focus issues
-          e.preventDefault();
-          setFilterDialogOpen(false);
-        }}>
-          <DialogHeader>
-            <DialogTitle>Filter Products</DialogTitle>
-            <DialogDescription>
-              Select criteria to filter the products list.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium col-span-1">Status</label>
-              <Select
-                value={filters.status}
-                onValueChange={(value) => handleFilterDialogChange("status", value)}
-              // className="col-span-3"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any status" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="any">Any status</SelectItem>
-                  <SelectItem value="enabled">Enabled</SelectItem>
-                  <SelectItem value="disabled">Disabled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium col-span-1">Category</label>
-              <Select
-                value={filters.category_id}
-                onValueChange={(value) => handleFilterDialogChange("category_id", value)}
-              // className="col-span-3"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any category" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="any">Any category</SelectItem>
-                  {categories.length === 0 && (
-                    <SelectItem value="loading" disabled>
-                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                      Loading categories...
-                    </SelectItem>
-                  )}
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name.en}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium col-span-1">Brand</label>
-              <Select
-                value={filters.brand_id}
-                onValueChange={(value) => handleFilterDialogChange("brand_id", value)}
-              // className="col-span-3"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any brand" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="any">Any brand</SelectItem>
-                  {brands.length === 0 && (
-                    <SelectItem value="loading" disabled>
-                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                      Loading brands...
-                    </SelectItem>
-                  )}
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.id}>
-                      {brand.name.en}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium col-span-1">Price</label>
-              <div className="col-span-3 flex items-center gap-2">
-                <Input
-                  type="number"
-                  placeholder="Min"
-                  value={filters.price_min}
-                  onChange={(e) => handleFilterDialogChange("price_min", e.target.value)}
-                  className="flex-1"
-                />
-                <span>to</span>
-                <Input
-                  type="number"
-                  placeholder="Max"
-                  value={filters.price_max}
-                  onChange={(e) => handleFilterDialogChange("price_max", e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium col-span-1">Stock</label>
-              <Select
-                value={filters.stock_status}
-                onValueChange={(value) => handleFilterDialogChange("stock_status", value)}
-              // className="col-span-3"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any stock status" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="any">Any stock status</SelectItem>
-                  <SelectItem value="in_stock">In Stock</SelectItem>
-                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                  <SelectItem value="unlimited">Unlimited Stock</SelectItem>
-                  <SelectItem value="preorder">Pre-order Enabled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium col-span-1">Shipping</label>
-              <Select
-                value={filters.requires_shipping !== undefined ? (filters.requires_shipping ? "true" : "false") : "any"}
-                onValueChange={handleShippingFilterChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Shipping requirement" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="any">Any shipping status</SelectItem>
-                  <SelectItem value="true">Requires shipping</SelectItem>
-                  <SelectItem value="false">No shipping required</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium col-span-1">Shipping Type</label>
-              <Select
-                value={filters.shipping_type || "any"}
-                onValueChange={(value) => handleFilterDialogChange("shipping_type", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any shipping type" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="any">Any shipping type</SelectItem>
-                  <SelectItem value="default">Default shipping</SelectItem>
-                  <SelectItem value="fixed_shipping">Fixed shipping</SelectItem>
-                  <SelectItem value="free_shipping">Free shipping</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              clearFilters()
-              setFilterDialogOpen(false)
-            }}>
-              Clear Filters
-            </Button>
-            <Button onClick={applyFilters}>
-              Apply Filters
             </Button>
           </DialogFooter>
         </DialogContent>
