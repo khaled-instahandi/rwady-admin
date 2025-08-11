@@ -73,6 +73,7 @@ export default function CategoriesPage() {
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([])
   const [loadingProducts, setLoadingProducts] = useState(false)
+  const [reorderingCategory, setReorderingCategory] = useState<number | null>(null)
   const router = useRouter()
   const [formData, setFormData] = useState<CategoryFormData>({
     name: { ar: "", en: "" },
@@ -89,6 +90,28 @@ export default function CategoriesPage() {
       image: "",
     },
   })
+
+  const handleReorderCategory = async (categoryId: number, targetOrder: number) => {
+    try {
+      setReorderingCategory(categoryId)
+      await apiService.reorderCategory(categoryId, targetOrder)
+      await loadCategories() // Refresh categories after reordering
+      toast({
+        title: "Success",
+        description: "Category reordered successfully",
+        variant: "default",
+      })
+    } catch (error) {
+      console.error('Error reordering category:', error)
+      toast({
+        title: "Error",
+        description: "Failed to reorder category",
+        variant: "destructive",
+      })
+    } finally {
+      setReorderingCategory(null)
+    }
+  }
 
   const loadCategories = useCallback(async () => {
     setRefreshing(true)
@@ -744,7 +767,7 @@ export default function CategoriesPage() {
         </div>
 
         {/* Categories Tree */}
-        <div className="p-4 overflow-auto max-h-[calc(100vh-220px)]">
+        <div className="p-4 overflow-auto max-h-[calc(100vh-360px)]">
           <div className="flex justify-between items-center mb-2">
             <div className="text-sm text-gray-600">{filteredCategories.length} categories</div>
           </div>
@@ -756,6 +779,8 @@ export default function CategoriesPage() {
             onToggleCollapse={handleToggleCollapse}
             collapsedIds={collapsedIds}
             loading={refreshing}
+            onReorder={handleReorderCategory}
+            reorderingId={reorderingCategory}
           />
         </div>
       </div>
@@ -1077,7 +1102,7 @@ export default function CategoriesPage() {
                                       {product.position || 0}
                                     </div>
                                     <img
-                                      src={product.image_url || "/placeholder.svg?height=60&width=60"}
+                                      src={product.media[0]?.url || "/placeholder.svg?height=60&width=60"}
                                       alt={product.name.ar || product.name.en || "Product"}
                                       className="w-12 h-12 rounded-lg object-cover border border-gray-200 group-hover:shadow-md transition-shadow"
                                     />

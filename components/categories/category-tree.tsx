@@ -1,18 +1,37 @@
 "use client"
+
 import { useState } from "react"
-import { ChevronRight, ChevronDown, Folder, FolderOpen, Check, Loader2 } from "lucide-react"
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Check, Loader2, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Category } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 interface CategoryTreeProps {
   categories: Category[]
   selectedId?: number
   onSelect: (category: Category) => void
-  onToggleCollapse?: (categoryId: number) => void
-  collapsedIds?: Set<number>
+  onToggleCollapse: (categoryId: number) => void
+  collapsedIds: Set<number>
   loading?: boolean
+  onReorder?: (categoryId: number, targetOrder: number) => Promise<void>
+  reorderingId?: number | null
 }
 
 interface CategoryNodeProps {
@@ -24,6 +43,89 @@ interface CategoryNodeProps {
   onToggleCollapse: (categoryId: number) => void
   selectedId?: number
   collapsedIds: Set<number>
+  enableReorder?: boolean
+  dragAttributes?: any
+  dragListeners?: any
+}
+
+interface SortableCategoryProps {
+  category: Category
+  level: number
+  isSelected: boolean
+  isCollapsed: boolean
+  onSelect: (category: Category) => void
+  onToggleCollapse: (categoryId: number) => void
+  selectedId?: number
+  collapsedIds: Set<number>
+  enableReorder?: boolean
+}
+
+function SortableCategory({
+  category,
+  level,
+  isSelected,
+  isCollapsed,
+  onSelect,
+  onToggleCollapse,
+  selectedId,
+  collapsedIds,
+  enableReorder = true,
+}: SortableCategoryProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: category.id.toString(),
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  if (isDragging) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="opacity-50 bg-blue-50 border border-blue-200 rounded-md p-2"
+      >
+        <CategoryNode
+          category={category}
+          level={level}
+          isSelected={isSelected}
+          isCollapsed={isCollapsed}
+          onSelect={onSelect}
+          onToggleCollapse={onToggleCollapse}
+          selectedId={selectedId}
+          collapsedIds={collapsedIds}
+          enableReorder={true}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <CategoryNode
+        category={category}
+        level={level}
+        isSelected={isSelected}
+        isCollapsed={isCollapsed}
+        onSelect={onSelect}
+        onToggleCollapse={onToggleCollapse}
+        selectedId={selectedId}
+        collapsedIds={collapsedIds}
+        enableReorder={true}
+        dragAttributes={attributes}
+        dragListeners={listeners}
+      />
+    </div>
+  )
 }
 
 function CategoryNode({
@@ -35,6 +137,9 @@ function CategoryNode({
   onToggleCollapse,
   selectedId,
   collapsedIds,
+  enableReorder = false,
+  dragAttributes,
+  dragListeners,
 }: CategoryNodeProps) {
   const hasChildren = category.children && category.children.length > 0
   const paddingLeft = level * 16
@@ -54,6 +159,18 @@ function CategoryNode({
         whileHover={{ x: 2 }}
         transition={{ duration: 0.2 }}
       >
+        {/* Drag Handle */}
+        {enableReorder && (isHovered || isSelected) && (
+          <div 
+            {...dragAttributes} 
+            {...dragListeners}
+            className="mr-2 p-1 cursor-grab active:cursor-grabbing hover:bg-gray-200 rounded"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4 text-gray-400" />
+          </div>
+        )}
+
         {hasChildren ? (
           <motion.button
             onClick={(e) => {
@@ -83,7 +200,13 @@ function CategoryNode({
           <div className="w-4 h-4 bg-blue-600 rounded-sm mr-2" />
         )}
 
-        <span className="text-sm truncate">{category.name.ar || category.name.en || "Unnamed Category"}</span>
+        <span className="text-sm truncate flex-1">{category.name.ar || category.name.en || "Unnamed Category"}</span>
+
+        {category.orders !== undefined && enableReorder && (
+          <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-medium">
+            #{category.orders}
+          </span>
+        )}
 
         {category.products_count !== null && (
           <span className="ml-auto text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
@@ -110,19 +233,39 @@ function CategoryNode({
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
           >
-            {category.children!.map((child) => (
-              <CategoryNode
-                key={child.id}
-                category={child}
-                level={level + 1}
-                isSelected={child.id === selectedId}
-                isCollapsed={collapsedIds.has(child.id)}
-                onSelect={onSelect}
-                onToggleCollapse={onToggleCollapse}
-                selectedId={selectedId}
-                collapsedIds={collapsedIds}
-              />
-            ))}
+            {enableReorder ? (
+              <SortableContext items={category.children!.map(c => c.id.toString())} strategy={verticalListSortingStrategy}>
+                {category.children!.map((child) => (
+                  <SortableCategory
+                    key={child.id}
+                    category={child}
+                    level={level + 1}
+                    isSelected={child.id === selectedId}
+                    isCollapsed={collapsedIds.has(child.id)}
+                    onSelect={onSelect}
+                    onToggleCollapse={onToggleCollapse}
+                    selectedId={selectedId}
+                    collapsedIds={collapsedIds}
+                    enableReorder={true}
+                  />
+                ))}
+              </SortableContext>
+            ) : (
+              category.children!.map((child) => (
+                <CategoryNode
+                  key={child.id}
+                  category={child}
+                  level={level + 1}
+                  isSelected={child.id === selectedId}
+                  isCollapsed={collapsedIds.has(child.id)}
+                  onSelect={onSelect}
+                  onToggleCollapse={onToggleCollapse}
+                  selectedId={selectedId}
+                  collapsedIds={collapsedIds}
+                  enableReorder={false}
+                />
+              ))
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -137,9 +280,19 @@ export function CategoryTree({
   onToggleCollapse = () => {},
   collapsedIds = new Set(),
   loading = false,
+  onReorder,
+  reorderingId,
 }: CategoryTreeProps) {
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  )
+
   // Build tree structure
-  
   const buildTree = (cats: Category[]): Category[] => {
     const categoryMap = new Map<number, Category>()
     const rootCategories: Category[] = []
@@ -164,9 +317,54 @@ export function CategoryTree({
   }
 
   const treeData = buildTree(categories)
-  console.log("treeData", treeData);
-  console.log("categories", categories);
   
+  // Only show root level categories for reordering (same parent level)
+  const rootCategories = categories.filter(cat => !cat.parent_id)
+  
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+
+    if (!over || active.id === over.id || !onReorder) {
+      return
+    }
+
+    const activeCategory = findCategoryInTree(rootCategories, active.id as string)
+    const overCategory = findCategoryInTree(rootCategories, over.id as string)
+
+    if (!activeCategory || !overCategory) {
+      return
+    }
+
+    // Get the target order from the category we're dropping over
+    const targetOrder = overCategory.orders || 0
+
+    try {
+      await onReorder(activeCategory.id, targetOrder)
+    } catch (error) {
+      console.error('Failed to reorder category:', error)
+    }
+  }
+
+  // Helper function to find category in tree (including children)
+  const findCategoryInTree = (cats: Category[], id: string): Category | null => {
+    for (const cat of cats) {
+      if (cat.id.toString() === id) {
+        return cat
+      }
+      if (cat.children && cat.children.length > 0) {
+        const found = findCategoryInTree(cat.children, id)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  const activeCategory = activeId ? findCategoryInTree(rootCategories, activeId) : null
 
   if (loading) {
     return (
@@ -191,34 +389,82 @@ export function CategoryTree({
 
   return (
     <TooltipProvider>
-      <div className="space-y-1">
-        {categories.map((category) => (
-          <Tooltip key={category.id}>
-            <TooltipTrigger asChild>
-              <div>
-                <CategoryNode
-                  category={category}
-                  level={0}
-                  isSelected={category.id === selectedId}
-                  isCollapsed={collapsedIds.has(category.id)}
-                  onSelect={onSelect}
-                  onToggleCollapse={onToggleCollapse}
-                  selectedId={selectedId}
-                  collapsedIds={collapsedIds}
-                />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <div>
-                <div className="font-medium">{category.name.ar || category.name.en}</div>
-                {category.products_count !== null && (
-                  <div className="text-xs text-gray-500">Products: {category.products_count}</div>
-                )}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={rootCategories.map(cat => cat.id.toString())}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-1">
+            {rootCategories.map((category) => (
+              <Tooltip key={category.id}>
+                <TooltipTrigger asChild>
+                  <div>
+                    {onReorder ? (
+                      <SortableCategory
+                        category={category}
+                        level={0}
+                        isSelected={category.id === selectedId}
+                        isCollapsed={collapsedIds.has(category.id)}
+                        onSelect={onSelect}
+                        onToggleCollapse={onToggleCollapse}
+                        selectedId={selectedId}
+                        collapsedIds={collapsedIds}
+                        enableReorder={true}
+                      />
+                    ) : (
+                      <CategoryNode
+                        category={category}
+                        level={0}
+                        isSelected={category.id === selectedId}
+                        isCollapsed={collapsedIds.has(category.id)}
+                        onSelect={onSelect}
+                        onToggleCollapse={onToggleCollapse}
+                        selectedId={selectedId}
+                        collapsedIds={collapsedIds}
+                        enableReorder={false}
+                      />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <div>
+                    <div className="font-medium">{category.name.ar || category.name.en}</div>
+                    {category.products_count !== null && (
+                      <div className="text-xs text-gray-500">Products: {category.products_count}</div>
+                    )}
+                    {onReorder && category.orders !== undefined && (
+                      <div className="text-xs text-blue-600">Order: {category.orders}</div>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </SortableContext>
+
+        <DragOverlay>
+          {activeCategory ? (
+            <div className="bg-white border border-blue-200 rounded-md shadow-lg p-2 opacity-90">
+              <CategoryNode
+                category={activeCategory}
+                level={0}
+                isSelected={false}
+                isCollapsed={false}
+                onSelect={() => {}}
+                onToggleCollapse={() => {}}
+                selectedId={selectedId}
+                collapsedIds={new Set()}
+                enableReorder={false}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </TooltipProvider>
   )
 }

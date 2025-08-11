@@ -639,6 +639,10 @@ class ApiService {
     return this.post("/admin/categories/reorder", data)
   }
 
+  async reorderCategory(categoryId: number, targetOrder: number): Promise<ApiResponse<Category[]>> {
+    return this.put(`/admin/categories/${categoryId}/reorder`, { orders: targetOrder })
+  }
+
   // Products API methods
   async getProducts(params?: PaginationParams): Promise<ApiResponse<Product[]>> {
     return this.get("/admin/products", params)
