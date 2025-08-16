@@ -90,8 +90,12 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    pointer-events: auto !important;
   }
+}
+
+/* Fix for Radix UI Dialog pointer-events issue */
+body {
+  pointer-events: auto !important;
 }
 
 /* Prevent Radix UI from disabling pointer events on body */
@@ -100,6 +104,22 @@ body[style*="pointer-events: none"] {
 }
 
 /* Additional safety for any body pointer-events override */
-body {
+html,
+html body {
+  pointer-events: auto !important;
+}
+
+/* Ensure dialogs and overlays still work properly */
+[data-radix-portal] {
+  pointer-events: auto !important;
+}
+
+/* Allow overlay interactions */
+[data-radix-dialog-overlay] {
+  pointer-events: auto !important;
+}
+
+/* Allow content interactions */
+[data-radix-dialog-content] {
   pointer-events: auto !important;
 }

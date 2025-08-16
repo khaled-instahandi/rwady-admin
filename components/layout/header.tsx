@@ -19,10 +19,10 @@ export function Header() {
       </div>
 
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="sm" className="text-blue-600">
+        {/* <Button variant="ghost" size="sm" className="text-blue-600">
           <HelpCircle className="w-4 h-4 mr-2" />
           Get Help
-        </Button>
+        </Button> */}
 
         <Button 
           variant="ghost" 

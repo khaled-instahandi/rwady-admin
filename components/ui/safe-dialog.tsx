@@ -38,7 +38,7 @@ const useBodyPointerEventsCleanup = (open: boolean) => {
   }, [])
 }
 
-const SafeDialogRoot = React.forwardRef<
+const SafeDialog = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>
 >(({ open, onOpenChange, ...props }, ref) => {
@@ -52,9 +52,7 @@ const SafeDialogRoot = React.forwardRef<
     />
   )
 })
-SafeDialogRoot.displayName = "SafeDialogRoot"
-
-const Dialog = SafeDialogRoot
+SafeDialog.displayName = "SafeDialog"
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -132,7 +130,7 @@ const DialogDescription = React.forwardRef<
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
 export {
-  Dialog,
+  SafeDialog as Dialog,
   DialogPortal,
   DialogOverlay,
   DialogClose,

@@ -25,6 +25,10 @@ export default function RootLayout({
         <AuthProvider>{children}</AuthProvider>
         <Toaster />
         <Script
+          src="/dialog-fix.js"
+          strategy="beforeInteractive"
+        />
+        <Script
           id="register-sw"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{

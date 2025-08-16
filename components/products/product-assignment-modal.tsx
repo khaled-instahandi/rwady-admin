@@ -10,6 +10,7 @@ import { Search, Plus, Loader2, Package } from "lucide-react"
 import { apiService, type Product } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { useToast } from "@/components/ui/use-toast"
+import { useDialogPointerEventsFix } from "@/hooks/use-dialog-fix"
 
 interface ProductAssignmentModalProps {
   isOpen: boolean
@@ -36,26 +37,40 @@ export function ProductAssignmentModal({
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(8)
+  const [totalProducts, setTotalProducts] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const { toast } = useToast()
 
+  // Fix for dialog pointer-events issue
+  useDialogPointerEventsFix(isOpen)
+
+  // Load products from backend with server-side pagination and filtering
   const loadProducts = async () => {
     setLoading(true)
     try {
       const response = await apiService.getProducts({
         page: currentPage,
-        limit: 100, // Load more products for better filtering
+        limit: itemsPerPage,
         search: searchTerm,
+        // sku: skuFilter, // Add this when API supports it
+        // exclude_category: categoryId, // Add this when API supports it
       })
 
       if (response.success && response.data) {
         setProducts(response.data)
+        // Use response metadata if available, otherwise calculate locally
+        setTotalProducts((response as any).meta.total)
+        setTotalPages((response as any).meta.last_page || Math.ceil(((response as any).meta.total ) / itemsPerPage))
       } else {
-        // Use mock data as fallback
-        // setProducts(mockProducts)
+        setProducts([])
+        setTotalProducts(0)
+        setTotalPages(1)
       }
     } catch (error) {
       console.error("Failed to load products:", error)
-      // setProducts(mockProducts)
+      setProducts([])
+      setTotalProducts(0)
+      setTotalPages(1)
     } finally {
       setLoading(false)
     }
@@ -63,34 +78,49 @@ export function ProductAssignmentModal({
 
   useEffect(() => {
     if (isOpen) {
-      loadProducts()
       setSelectedProductIds([])
       setSearchTerm("")
       setSkuFilter("")
       setCurrentPage(1)
+      loadProducts()
     }
-  }, [isOpen, currentPage])
+  }, [isOpen])
 
+  // Load products when page, search, or filters change
+  useEffect(() => {
+    if (isOpen) {
+      loadProducts()
+    }
+  }, [currentPage, itemsPerPage, isOpen])
+
+  // Separate effect for search term debouncing
+  useEffect(() => {
+    if (!isOpen) return
+    
+    const timer = setTimeout(() => {
+      setCurrentPage(1) // Reset to first page when searching
+      loadProducts()
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm, skuFilter, isOpen])
+
+  // Filter products locally only to exclude already assigned products
   const filteredProducts = products.filter((product) => {
     // Exclude already assigned products
-    if (assignedProductIds.includes(product.id)) return false
-
-    // Search filter
-    const matchesSearch =
-      searchTerm === "" ||
-      product.name.ar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.name.en && product.name.en.toLowerCase().includes(searchTerm.toLowerCase()))
-
-    // SKU filter
-    const matchesSku = skuFilter === "" || product.sku.toLowerCase().includes(skuFilter.toLowerCase())
-
-    return matchesSearch && matchesSku
+    return !assignedProductIds.includes(product.id)
   })
 
-  // Pagination
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+  // Use backend pagination data
   const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage)
+  const displayedProducts = filteredProducts // Show all filtered products since backend handles pagination
+
+  // Reset current page if it's beyond total pages
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [totalPages, currentPage])
 
   const handleProductSelect = (productId: number, checked: boolean) => {
     if (checked) {
@@ -102,7 +132,7 @@ export function ProductAssignmentModal({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProductIds(paginatedProducts.map((p) => p.id))
+      setSelectedProductIds(displayedProducts.map((p) => p.id))
     } else {
       setSelectedProductIds([])
     }
@@ -220,8 +250,8 @@ export function ProductAssignmentModal({
                   <th className="w-12 p-3 text-left">
                     <Checkbox
                       checked={
-                        paginatedProducts.length > 0 &&
-                        paginatedProducts.every((p) => selectedProductIds.includes(p.id))
+                        displayedProducts.length > 0 &&
+                        displayedProducts.every((p) => selectedProductIds.includes(p.id))
                       }
                       onCheckedChange={handleSelectAll}
                     />
@@ -242,7 +272,7 @@ export function ProductAssignmentModal({
                         </div>
                       </td>
                     </tr>
-                  ) : paginatedProducts.length === 0 ? (
+                  ) : displayedProducts.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="p-8 text-center">
                         <div className="flex flex-col items-center">
@@ -253,7 +283,7 @@ export function ProductAssignmentModal({
                       </td>
                     </tr>
                   ) : (
-                    paginatedProducts.map((product, index) => (
+                    displayedProducts.map((product, index) => (
                       <motion.tr
                         key={product.id}
                         initial={{ opacity: 0, y: 20 }}
@@ -269,7 +299,7 @@ export function ProductAssignmentModal({
                           />
                         </td>
                         <td className="p-3">
-                          <span className="font-mono text-sm text-gray-700">{product.sku}</span>
+                          <span className="font-mono text-sm text-gray-700">{product.sku || 'N/A'}</span>
                         </td>
                         <td className="p-3">
                           <div className="flex items-center space-x-3">
@@ -281,10 +311,10 @@ export function ProductAssignmentModal({
                             <div>
                               <div className="font-medium text-gray-900">{product.name.ar || product.name.en}</div>
                               <div className="text-sm text-gray-500">
-                                Stock: {product.stock_quantity} • ${product.price}
-                                {product.sale_price && (
+                                Stock: {(product as any).stock_quantity || 0} • ${product.price}
+                                {(product as any).sale_price && (
                                   <Badge variant="secondary" className="ml-2">
-                                    Sale: ${product.sale_price}
+                                    Sale: ${(product as any).sale_price}
                                   </Badge>
                                 )}
                               </div>
@@ -310,20 +340,21 @@ export function ProductAssignmentModal({
           </div>
 
           {/* Pagination */}
-          {!loading && filteredProducts.length > 0 && (
+          {!loading && totalProducts > 0 && (
             <div className="flex items-center justify-between p-4 border-t border-gray-200">
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-600">
-                  Items: {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredProducts.length)} of{" "}
-                  {filteredProducts.length}
+                  Items: {startIndex + 1}-{Math.min(startIndex + itemsPerPage, totalProducts)} of{" "}
+                  {totalProducts}
                 </span>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-600">Items per page:</span>
                   <select
                     value={itemsPerPage}
                     onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value))
-                      setCurrentPage(1)
+                      const newItemsPerPage = Number(e.target.value)
+                      setItemsPerPage(newItemsPerPage)
+                      setCurrentPage(1) // Reset to first page when changing items per page
                     }}
                     className="border border-gray-300 rounded px-2 py-1 text-sm"
                   >

@@ -170,7 +170,7 @@ export default function CategoriesPage() {
         });
 
         setCategoryProducts(response.data)
-        
+
         // Update pagination info from response
         if (response.meta) {
           console.log('Pagination meta:', response.meta)
@@ -298,12 +298,12 @@ export default function CategoriesPage() {
       });
 
       setUnsavedChanges(false);
-      
+
       // Reset pagination when changing category
       setProductsPage(1);
       setProductsTotalCount(0);
       setProductsTotalPages(0);
-      
+
       loadCategoryProducts(selectedCategory.id, 1, productsLimit);
     }
   }, [selectedCategory, loadCategoryProducts])
@@ -1168,78 +1168,140 @@ export default function CategoriesPage() {
                             />
                           </div>
 
-                          <div className="mt-6 flex justify-between items-center text-sm text-gray-600">
-                            <span>
-                              SHOWING {((productsPage - 1) * productsLimit) + 1} - {Math.min(productsPage * productsLimit, productsTotalCount)} OF {productsTotalCount} PRODUCTS
-                            </span>
-                            <div className="flex items-center space-x-4">
-                              <div className="flex items-center space-x-2">
-                                <span>PRODUCTS ON PAGE:</span>
-                                <select 
-                                  className="border border-gray-300 rounded px-2 py-1"
-                                  value={(productsLimit || 10).toString()}
-                                  onChange={(e) => {
-                                    console.log('Select onChange triggered:', e.target.value)
-                                    handleProductsLimitChange(Number(e.target.value))
-                                  }}
-                                >
-                                  <option value="5">5</option>
-                                  <option value="10">10</option>
-                                  <option value="25">25</option>
-                                  <option value="50">50</option>
-                                  <option value="100">100</option>
-                                </select>
+                          <div className="mt-6 border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                            <div className="flex flex-1 justify-between items-center">
+                              <div className="flex items-center text-sm text-gray-700">
+                                <span>
+                                  {productsTotalCount} products
+                                </span>
                               </div>
-                              
-                              {productsTotalPages > 1 && productsTotalCount > 0 && (
+
+                              <div className="flex items-center space-x-4">
+                                {/* Items per page selector */}
                                 <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={() => handleProductsPageChange(productsPage - 1)}
-                                    disabled={productsPage === 1 || loadingProducts}
-                                    className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                  {/* <label className="text-sm text-gray-700">Show:</label> */}
+                                  <select
+                                    className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                    value={(productsLimit || 10).toString()}
+                                    onChange={(e) => {
+                                      console.log('Items per page changed:', e.target.value)
+                                      handleProductsLimitChange(Number(e.target.value))
+                                    }}
                                   >
-                                    السابق
-                                  </button>
-                                  
-                                  <div className="flex items-center space-x-1">
-                                    {Array.from({ length: Math.min(5, productsTotalPages) }, (_, i) => {
-                                      let pageNum;
-                                      if (productsTotalPages <= 5) {
-                                        pageNum = i + 1;
-                                      } else if (productsPage <= 3) {
-                                        pageNum = i + 1;
-                                      } else if (productsPage >= productsTotalPages - 2) {
-                                        pageNum = productsTotalPages - 4 + i;
-                                      } else {
-                                        pageNum = productsPage - 2 + i;
-                                      }
-                                      
-                                      return (
-                                        <button
-                                          key={pageNum}
-                                          onClick={() => handleProductsPageChange(pageNum)}
-                                          disabled={loadingProducts}
-                                          className={`px-3 py-1 text-sm border rounded disabled:opacity-50 ${
-                                            pageNum === productsPage
-                                              ? 'bg-blue-600 text-white border-blue-600'
-                                              : 'border-gray-300 hover:bg-gray-50'
-                                          }`}
-                                        >
-                                          {pageNum}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  
-                                  <button
-                                    onClick={() => handleProductsPageChange(productsPage + 1)}
-                                    disabled={productsPage === productsTotalPages || loadingProducts}
-                                    className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                                  >
-                                    التالي
-                                  </button>
+                                    <option value="5">5</option>
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                  </select>
+                                  {/* <span className="text-sm text-gray-700">per page</span> */}
                                 </div>
-                              )}
+
+                                {/* Pagination controls */}
+                                {productsTotalPages > 1 && productsTotalCount > 0 && (
+                                  <nav className="flex items-center space-x-1" aria-label="Pagination">
+                                    {/* Previous button */}
+                                    <button
+                                      onClick={() => handleProductsPageChange(productsPage - 1)}
+                                      disabled={productsPage === 1 || loadingProducts}
+                                      className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                                    >
+                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                      {/* Previous */}
+                                    </button>
+
+                                    {/* Page numbers */}
+                                    <div className="hidden sm:flex">
+                                      {(() => {
+                                        const pages = [];
+                                        const maxVisiblePages = 5;
+
+                                        if (productsTotalPages <= maxVisiblePages) {
+                                          // Show all pages if total pages is small
+                                          for (let i = 1; i <= productsTotalPages; i++) {
+                                            pages.push(i);
+                                          }
+                                        } else {
+                                          // Show smart pagination
+                                          if (productsPage <= 3) {
+                                            // Show first pages + ellipsis + last page
+                                            for (let i = 1; i <= 4; i++) pages.push(i);
+                                            if (productsTotalPages > 5) pages.push('...');
+                                            pages.push(productsTotalPages);
+                                          } else if (productsPage >= productsTotalPages - 2) {
+                                            // Show first page + ellipsis + last pages
+                                            pages.push(1);
+                                            if (productsTotalPages > 5) pages.push('...');
+                                            for (let i = productsTotalPages - 3; i <= productsTotalPages; i++) {
+                                              pages.push(i);
+                                            }
+                                          } else {
+                                            // Show first + ellipsis + current range + ellipsis + last
+                                            pages.push(1);
+                                            pages.push('...');
+                                            for (let i = productsPage - 1; i <= productsPage + 1; i++) {
+                                              pages.push(i);
+                                            }
+                                            pages.push('...');
+                                            pages.push(productsTotalPages);
+                                          }
+                                        }
+
+                                        return pages.map((page, index) => {
+                                          if (page === '...') {
+                                            return (
+                                              <span
+                                                key={`ellipsis-${index}`}
+                                                className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300"
+                                              >
+                                                ...
+                                              </span>
+                                            );
+                                          }
+
+                                          const pageNum = page as number;
+                                          const isCurrentPage = pageNum === productsPage;
+
+                                          return (
+                                            <button
+                                              key={pageNum}
+                                              onClick={() => handleProductsPageChange(pageNum)}
+                                              disabled={loadingProducts}
+                                              className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border transition-colors disabled:opacity-50 ${isCurrentPage
+                                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
+                                                }`}
+                                            >
+                                              {pageNum}
+                                            </button>
+                                          );
+                                        });
+                                      })()}
+                                    </div>
+
+                                    {/* Mobile page info */}
+                                    <div className="sm:hidden">
+                                      <span className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300">
+                                        {productsPage} of {productsTotalPages}
+                                      </span>
+                                    </div>
+
+                                    {/* Next button */}
+                                    <button
+                                      onClick={() => handleProductsPageChange(productsPage + 1)}
+                                      disabled={productsPage === productsTotalPages || loadingProducts}
+                                      className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                                    >
+                                      {/* Next */}
+                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  </nav>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
