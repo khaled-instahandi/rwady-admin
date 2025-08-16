@@ -542,7 +542,7 @@ export default function AddPromotionPage() {
                                     Previous
                                 </Button>
                                 <div className="flex space-x-3">
-                                    <Button
+                                    {/* <Button
                                         variant="outline"
                                         onClick={() => {
                                             setFormData({ ...formData, status: "draft" })
@@ -551,7 +551,7 @@ export default function AddPromotionPage() {
                                         disabled={submitting}
                                     >
                                         Create without Launch
-                                    </Button>
+                                    </Button> */}
                                     <Button
                                         onClick={() => {
                                             setFormData({ ...formData, status: "active" })
