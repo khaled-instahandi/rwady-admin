@@ -63,7 +63,7 @@ export default function AddPromotionPage() {
     const router = useRouter()
 
     const handleCreatePromotion = async () => {
-        if (!formData.title.ar || formData.discount_value <= 0) {
+        if (!formData.title.ar || (formData.type !== "shipping" && formData.discount_value <= 0)) {
             toast({
                 title: "Error",
                 description: "Please fill all required fields",
@@ -78,9 +78,14 @@ export default function AddPromotionPage() {
             const promotionData: CreatePromotionData = {
                 title: formData.title,
                 type: formData.type,
-                discount_type: formData.discount_type,
-                discount_value: formData.discount_value,
+                
                 status: formData.status,
+            }
+            
+            // Only add discount fields if not shipping type
+            if (formData.type !== "shipping") {
+                promotionData.discount_type = formData.discount_type;
+                promotionData.discount_value = formData.discount_value;
             }
 
             if (formData.start_at) {
@@ -191,7 +196,8 @@ export default function AddPromotionPage() {
             case 1:
                 return true // Type is always selected (has default value)
             case 2:
-                return formData.title.ar && formData.discount_value > 0 &&
+                return formData.title.ar && 
+                    ((formData.type !== "shipping" && formData.discount_value > 0) || formData.type === "shipping") &&
                     ((formData.type === "product" && formData.products.length > 0) ||
                         (formData.type === "category" && formData.categories.length > 0) ||
                         (formData.type === "cart_total" && formData.min_cart_total > 0) ||
@@ -228,10 +234,10 @@ export default function AddPromotionPage() {
                 {[1, 2, 3].map((step) => (
                     <div key={step} className="flex items-center">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${step === currentStep
-                                ? "bg-blue-600 text-white"
-                                : step < currentStep
-                                    ? "bg-green-600 text-white"
-                                    : "bg-gray-200 text-gray-600"
+                            ? "bg-blue-600 text-white"
+                            : step < currentStep
+                                ? "bg-green-600 text-white"
+                                : "bg-gray-200 text-gray-600"
                             }`}>
                             {step}
                         </div>
@@ -260,8 +266,8 @@ export default function AddPromotionPage() {
                                     <div
                                         key={type}
                                         className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${formData.type === type
-                                                ? "border-blue-500 bg-blue-50"
-                                                : "border-gray-200 hover:border-gray-300"
+                                            ? "border-blue-500 bg-blue-50"
+                                            : "border-gray-200 hover:border-gray-300"
                                             }`}
                                         onClick={() => setFormData({ ...formData, type })}
                                     >
@@ -326,49 +332,50 @@ export default function AddPromotionPage() {
                                     />
                                 </div>
                             </div>
+                            {formData.type !== "shipping" && (
 
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="discount_type">Discount Type *</Label>
-                                    <Select
-                                        value={formData.discount_type}
-                                        onValueChange={(value: "percentage" | "fixed") => setFormData({ ...formData, discount_type: value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="percentage">
-                                                <div className="flex items-center space-x-2">
-                                                    <Percent className="h-4 w-4" />
-                                                    <span>Percentage (%)</span>
-                                                </div>
-                                            </SelectItem>
-                                            <SelectItem value="fixed">
-                                                <div className="flex items-center space-x-2">
-                                                    <DollarSign className="h-4 w-4" />
-                                                    <span>Fixed Amount (IQD)</span>
-                                                </div>
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="discount_type">Discount Type *</Label>
+                                        <Select
+                                            value={formData.discount_type}
+                                            onValueChange={(value: "percentage" | "fixed") => setFormData({ ...formData, discount_type: value })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="percentage">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Percent className="h-4 w-4" />
+                                                        <span>Percentage (%)</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="fixed">
+                                                    <div className="flex items-center space-x-2">
+                                                        <DollarSign className="h-4 w-4" />
+                                                        <span>Fixed Amount (IQD)</span>
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="discount_value">
+                                            Discount Value * {formData.discount_type === "percentage" ? "(%)" : "(IQD)"}
+                                        </Label>
+                                        <Input
+                                            id="discount_value"
+                                            type="number"
+                                            placeholder={formData.discount_type === "percentage" ? "e.g: 10" : "e.g: 5000"}
+                                            value={formData.discount_value || ""}
+                                            onChange={(e) => setFormData({ ...formData, discount_value: Number(e.target.value) })}
+                                            min="0"
+                                            max={formData.discount_type === "percentage" ? "100" : undefined}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="discount_value">
-                                        Discount Value * {formData.discount_type === "percentage" ? "(%)" : "(IQD)"}
-                                    </Label>
-                                    <Input
-                                        id="discount_value"
-                                        type="number"
-                                        placeholder={formData.discount_type === "percentage" ? "e.g: 10" : "e.g: 5000"}
-                                        value={formData.discount_value || ""}
-                                        onChange={(e) => setFormData({ ...formData, discount_value: Number(e.target.value) })}
-                                        min="0"
-                                        max={formData.discount_type === "percentage" ? "100" : undefined}
-                                    />
-                                </div>
-                            </div>
-
+                            )}
                             {/* Type-specific sections */}
                             {formData.type === "product" && (
                                 <div className="space-y-4">
