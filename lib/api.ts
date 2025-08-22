@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://rwady-backend.ahmed-albakor.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_URL
 
 export interface Category {
   id: number
