@@ -58,7 +58,7 @@ export default function LoginPage() {
         console.log('Sending login request without device token')
       }
 
-      const response = await fetch("https://rwady-backend.ahmed-albakor.com/api/auth/login", {
+      const response = await fetch("https://backend.rwady.com/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -100,7 +100,7 @@ export default function LoginPage() {
         console.log('Sending OTP verification without device token')
       }
 
-      const response = await fetch("https://rwady-backend.ahmed-albakor.com/api/auth/verify-otp", {
+      const response = await fetch("https://backend.rwady.com/api/auth/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

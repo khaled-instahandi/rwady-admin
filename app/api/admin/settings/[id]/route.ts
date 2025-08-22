@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const API_BASE_URL = "https://rwady-backend.ahmed-albakor.com/api"
+const API_BASE_URL = "https://backend.rwady.com/api"
 
 // PUT /api/admin/settings/[id] - Update single setting by ID
 export async function PUT(

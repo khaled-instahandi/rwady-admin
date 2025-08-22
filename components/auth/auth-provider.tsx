@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("https://rwady-backend.ahmed-albakor.com/api/auth/logout", {
+      await fetch("https://backend.rwady.com/api/auth/logout", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 
-const API_BASE_URL = "https://rwady-backend.ahmed-albakor.com/api"
+const API_BASE_URL = "https://backend.rwady.com/api"
 
 export async function PUT(
   request: NextRequest,

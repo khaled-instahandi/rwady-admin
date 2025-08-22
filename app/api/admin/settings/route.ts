@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const API_BASE_URL = "https://rwady-backend.ahmed-albakor.com/api"
+const API_BASE_URL = "https://backend.rwady.com/api"
 
 // GET /api/admin/settings - Get all settings
 export async function GET(request: NextRequest) {
