@@ -11,7 +11,6 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Rwady Admin Dashboard",
   description: "Professional e-commerce management interface",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
