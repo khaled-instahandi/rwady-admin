@@ -5,7 +5,7 @@ import "./globals.css"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { Toaster } from "@/components/ui/toaster"
 import Script from "next/script"
-
+// ssr
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
